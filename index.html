@@ -13,9 +13,9 @@
     <h1 class="app-title">💨 StockVape</h1>
     <div style="display: flex; gap: 6px;">
       
-      <!-- BOTÓN CALCULADORA (NUEVO) -->
-      <button id="btn-calculator" class="btn-icon-header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="16" y1="18" x2="16" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="8" y1="18" x2="8" y2="18.01"></line></svg>
+      <!-- BOTÓN SIMULADOR DE COMPRAS -->
+      <button id="btn-planner" class="btn-icon-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
       </button>
 
       <button id="btn-history" class="btn-icon-header">
@@ -68,49 +68,49 @@
 
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- MODAL CALCULADORA IMPORTACIÓN (NUEVO) -->
-  <div id="calculator-modal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>🧮 Calc. de Importación</h3>
-        <button id="close-calc-btn" class="btn-close">✕</button>
+  <!-- 💥 MODAL: SIMULADOR DE FUTURAS COMPRAS 💥 -->
+  <div id="planner-modal" class="modal hidden action-sheet">
+    <div class="modal-content" style="max-height: 92vh; display: flex; flex-direction: column; padding-bottom: 20px;">
+      <div class="modal-header" style="margin-bottom: 12px;">
+        <h3>🛒 Futuras Compras</h3>
+        <button id="close-planner-btn" class="btn-close">✕</button>
       </div>
       
-      <div class="form-group row" style="gap: 12px;">
-        <div style="flex: 1;">
-          <label>Precio Prov. (USD)</label>
-          <input type="number" id="calc-usd" placeholder="Ej: 9" min="0" step="0.1" style="width: 100%;">
-        </div>
+      <!-- Variables de importación -->
+      <div class="form-group row" style="gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
         <div style="flex: 1;">
           <label>Costo Pasero (%)</label>
-          <input type="number" id="calc-pasero" value="15" min="0" style="width: 100%;">
+          <input type="number" id="plan-pasero" value="15" min="0" style="width: 100%; padding: 10px; font-size: 14px;">
         </div>
-      </div>
-
-      <div class="form-group row" style="gap: 12px;">
         <div style="flex: 1;">
           <label>Cotización (USDT)</label>
-          <input type="number" id="calc-usdt" value="1586" min="0" style="width: 100%;">
-        </div>
-        <div style="flex: 1;">
-          <label>Cantidad a pedir</label>
-          <input type="number" id="calc-qty" value="1" min="1" style="width: 100%;">
+          <input type="number" id="plan-usdt" value="1586" min="0" style="width: 100%; padding: 10px; font-size: 14px;">
         </div>
       </div>
 
-      <!-- Tarjeta de Resultados -->
-      <div style="background: var(--surface-light); padding: 16px; border-radius: 16px; margin-top: 20px; border: 1px solid var(--border);">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="font-size: 13px; color: var(--text-muted);">Costo final c/u (USDT):</span>
-          <span id="res-usd-unit" style="font-weight: 700; color: white;">0.00 USDT</span>
+      <!-- Agregar nuevo producto al simulador -->
+      <div style="margin-bottom: 16px;">
+        <input type="text" id="plan-name" placeholder="Ej: Auriculares JBL" style="width: 100%; background: var(--surface-light); color: white; border: 1px solid transparent; padding: 12px; border-radius: 12px; margin-bottom: 8px; outline: none;">
+        <div class="form-group row" style="gap: 8px;">
+          <div style="flex: 1;"><input type="number" id="plan-usd" placeholder="USD Base (Ej: 9)" style="width: 100%; background: var(--surface-light); color: white; border: none; padding: 12px; border-radius: 12px;"></div>
+          <div style="flex: 1;"><input type="number" id="plan-price" placeholder="Venta (ARS)" style="width: 100%; background: var(--surface-light); color: white; border: none; padding: 12px; border-radius: 12px;"></div>
+          <div style="width: 70px;"><input type="number" id="plan-qty" placeholder="Cant." value="1" style="width: 100%; background: var(--surface-light); color: white; border: none; padding: 12px; border-radius: 12px; text-align: center;"></div>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-          <span style="font-size: 13px; color: var(--text-muted);">Costo final c/u (ARS):</span>
-          <span id="res-ars-unit" style="font-weight: 700; color: var(--warning);">$0</span>
+        <button id="btn-add-plan" class="btn-save" style="padding: 12px; margin-top: 8px; font-size: 14px; border-radius: 12px; background: rgba(10, 132, 255, 0.2); color: var(--accent);">+ Añadir al simulador</button>
+      </div>
+
+      <!-- Lista de compras planeadas -->
+      <div id="planner-list" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;"></div>
+
+      <!-- Totales del simulador -->
+      <div style="border-top: 1px solid var(--border); padding-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">INVERSIÓN NECESARIA:</span>
+          <span id="plan-total-invest" style="font-size: 18px; font-weight: 800; color: white;">$0</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 14px; font-weight: 700;">INVERSIÓN TOTAL:</span>
-          <span id="res-ars-total" style="font-size: 22px; font-weight: 800; color: var(--success);">$0</span>
+          <span style="font-size: 13px; font-weight: 700; color: var(--warning);">GANANCIA ESTIMADA:</span>
+          <span id="plan-total-profit" style="font-size: 18px; font-weight: 800; color: var(--warning);">$0</span>
         </div>
       </div>
     </div>
