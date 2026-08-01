@@ -7,13 +7,12 @@ let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
 let currentFilter = 'all'; 
 
 // Privacidad (Ojito)
-let isEyeOpen = localStorage.getItem('vapeEye') !== 'false'; // Por defecto abierto
+let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
 
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
 const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 const iconChevron = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 const iconDeleteFlavor = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
-
 const iconEyeOpen = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
 const iconEyeClosed = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
 
@@ -27,7 +26,7 @@ const settingsModal = document.getElementById('settings-modal');
 const historyModal = document.getElementById('history-modal');
 
 const modelInput = document.getElementById('model-input');
-const costInput = document.getElementById('cost-input'); // NUEVO
+const costInput = document.getElementById('cost-input');
 const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
@@ -161,7 +160,6 @@ function renderHistory() {
       const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
       const dateDisplay = historyView === 'all' ? dateObj.toLocaleDateString() + ' ' + timeStr : timeStr;
       
-      // Aplicar ojito a la lista del historial
       const priceText = isEyeOpen ? `$${(sale.price || 0).toLocaleString('es-AR')}` : '***';
 
       const item = document.createElement('div');
@@ -218,12 +216,19 @@ document.getElementById('close-edit-btn').addEventListener('click', () => editMo
 
 document.getElementById('save-btn').addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
-  const cost = parseInt(costInput.value) || 0; // NUEVO
-  const price = parseInt(priceInput.value) || 0;
+  let cost = parseInt(costInput.value) || 0;
+  let price = parseInt(priceInput.value) || 0;
   const flavorsRaw = flavorInput.value.trim();
   const baseQty = parseInt(qtyInput.value) || 1;
 
   if (!model || !flavorsRaw) return alert('Completá modelo y sabores');
+
+  // 💥 ARREGLO DE HERENCIA: Si el modelo ya existe, hereda sus precios para que no queden en $0
+  const existingModelItems = stock.filter(i => i.model === model);
+  if (existingModelItems.length > 0) {
+    if (cost === 0) cost = existingModelItems[0].cost || 0;
+    if (price === 0) price = existingModelItems[0].price || 0;
+  }
 
   const flavors = flavorsRaw.split(/[\n,]+/).map(f => f.trim()).filter(f => f.length > 0 && !f.toLowerCase().includes('sabores dispo'));
   let addedCount = 0;
@@ -244,7 +249,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
       if (existing) {
         existing.qty += parsedQty;
         if(price > 0) existing.price = price;
-        if(cost > 0) existing.cost = cost; // Actualiza costo
+        if(cost > 0) existing.cost = cost;
       } else {
         stock.push({ id: Date.now() + Math.random(), model, cost, price, flavor: cleanFlavor, qty: parsedQty });
       }
@@ -267,8 +272,8 @@ window.openEditModal = function(event, oldName) {
   
   document.getElementById('edit-old-name').value = oldName;
   document.getElementById('edit-model-name').value = oldName;
-  document.getElementById('edit-model-cost').value = currentCost;
-  document.getElementById('edit-model-price').value = currentPrice;
+  document.getElementById('edit-model-cost').value = currentCost || '';
+  document.getElementById('edit-model-price').value = currentPrice || '';
   editModal.classList.remove('hidden');
 };
 
@@ -297,7 +302,6 @@ window.updateQty = function(id, change) {
   if (item) {
     if (item.qty === 0 && change < 0) return; 
     
-    // GUARDAR VENTA INCLUYENDO EL COSTO
     if (change === -1) {
       const now = new Date();
       salesHistory.push({
@@ -371,7 +375,6 @@ document.getElementById('copy-price-btn').addEventListener('click', () => execut
 
 // ---------------- RENDER PRINCIPAL ----------------
 function render() {
-  // Configura el ícono del ojito según el estado guardado
   document.getElementById('btn-toggle-eye').innerHTML = isEyeOpen ? iconEyeOpen : iconEyeClosed;
 
   const query = searchInput.value.toLowerCase();
@@ -392,8 +395,6 @@ function render() {
   const totalProfit = totalMoney - totalCost;
 
   document.getElementById('total-qty').textContent = totalQty + ' u.';
-  
-  // Aplica censura si el ojito está cerrado
   document.getElementById('total-money').textContent = isEyeOpen ? '$' + totalMoney.toLocaleString('es-AR') : '***';
   document.getElementById('total-profit').textContent = isEyeOpen ? '$' + totalProfit.toLocaleString('es-AR') : '***';
 
@@ -438,7 +439,6 @@ function render() {
     const safeModelName = model.replace(/'/g, "\\'"); 
     const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
 
-    // Si el ojito está cerrado, oculta los precios de venta también en la lista
     const badgePriceStr = (modelPrice > 0 && isEyeOpen) ? `<span class="model-price-badge">$ ${modelPrice.toLocaleString('es-AR')}</span>` : '';
 
     card.innerHTML = `
