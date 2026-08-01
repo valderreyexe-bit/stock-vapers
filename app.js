@@ -3,7 +3,8 @@ if ('serviceWorker' in navigator) {
 }
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
-let currentFilter = 'all'; // 'all', 'low', 'out'
+let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || []; // NUEVA BASE DE DATOS
+let currentFilter = 'all'; 
 
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
 const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
@@ -19,6 +20,7 @@ const addModal = document.getElementById('add-modal');
 const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
 const settingsModal = document.getElementById('settings-modal');
+const historyModal = document.getElementById('history-modal'); // NUEVO
 
 const modelInput = document.getElementById('model-input');
 const priceInput = document.getElementById('price-input');
@@ -28,6 +30,10 @@ const qtyInput = document.getElementById('qty-input');
 function saveStock() {
   localStorage.setItem('vapeStock', JSON.stringify(stock));
   render();
+}
+
+function saveHistory() {
+  localStorage.setItem('vapeSales', JSON.stringify(salesHistory));
 }
 
 function showToast(message) {
@@ -48,19 +54,20 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
   });
 });
 
-// ---------------- BACKUP (EXPORTAR E IMPORTAR) ----------------
+// ---------------- BACKUP (MODIFICADO PARA GUARDAR HISTORIAL TAMBIÉN) ----------------
 document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
 document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
 
 document.getElementById('export-btn').addEventListener('click', () => {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stock));
+  const backupData = { stock: stock, history: salesHistory };
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", "StockVape_Backup.json");
+  downloadAnchorNode.setAttribute("download", "StockVape_Backup_Total.json");
   document.body.appendChild(downloadAnchorNode);
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
-  showToast('💾 Backup descargado con éxito');
+  showToast('💾 Backup completo descargado');
   settingsModal.classList.add('hidden');
 });
 
@@ -70,21 +77,126 @@ document.getElementById('import-file').addEventListener('change', (event) => {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const importedStock = JSON.parse(e.target.result);
-      if (Array.isArray(importedStock)) {
-        stock = importedStock;
-        saveStock();
-        showToast('📂 Backup restaurado con éxito');
-        settingsModal.classList.add('hidden');
-      } else {
-        alert("El archivo no es válido");
+      const data = JSON.parse(e.target.result);
+      if (Array.isArray(data)) {
+        // Backup viejo (solo stock)
+        stock = data;
+      } else if (data.stock) {
+        // Backup nuevo (stock + historia)
+        stock = data.stock;
+        salesHistory = data.history || [];
       }
+      saveStock();
+      saveHistory();
+      showToast('📂 Backup restaurado');
+      settingsModal.classList.add('hidden');
     } catch (error) {
-      alert("Error al leer el archivo. Asegurate que sea el backup correcto.");
+      alert("Error al leer el archivo.");
     }
   };
   reader.readAsText(file);
 });
+
+
+// ---------------- LÓGICA DE HISTORIAL DE VENTAS ----------------
+let historyView = 'today'; // 'today' o 'all'
+
+document.getElementById('btn-history').addEventListener('click', () => {
+  renderHistory();
+  historyModal.classList.remove('hidden');
+});
+document.getElementById('close-history-btn').addEventListener('click', () => historyModal.classList.add('hidden'));
+
+document.getElementById('tab-today').addEventListener('click', (e) => {
+  historyView = 'today';
+  document.getElementById('tab-today').classList.add('active');
+  document.getElementById('tab-all').classList.remove('active');
+  renderHistory();
+});
+document.getElementById('tab-all').addEventListener('click', (e) => {
+  historyView = 'all';
+  document.getElementById('tab-all').classList.add('active');
+  document.getElementById('tab-today').classList.remove('active');
+  renderHistory();
+});
+
+function getTodayString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`; // "2026-8-1"
+}
+
+function renderHistory() {
+  const historyListContainer = document.getElementById('history-list');
+  const todayStr = getTodayString();
+  
+  // Filtrar si es "hoy"
+  let displaySales = historyView === 'today' 
+    ? salesHistory.filter(s => s.dateStr === todayStr) 
+    : salesHistory;
+    
+  // Ordenar de más reciente a más antiguo
+  displaySales = displaySales.sort((a, b) => b.timestamp - a.timestamp);
+
+  let totalQty = 0;
+  let totalMoney = 0;
+
+  historyListContainer.innerHTML = '';
+
+  if (displaySales.length === 0) {
+    historyListContainer.innerHTML = '<div class="empty-history">No hay ventas registradas.</div>';
+  } else {
+    displaySales.forEach(sale => {
+      totalQty += 1;
+      totalMoney += sale.price;
+
+      // Formatear hora (ej: 15:30)
+      const dateObj = new Date(sale.timestamp);
+      const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      const dateDisplay = historyView === 'all' ? dateObj.toLocaleDateString() + ' ' + timeStr : timeStr;
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `
+        <div class="history-item-left">
+          <span class="history-item-title">${sale.model}</span>
+          <span class="history-item-subtitle">${sale.flavor} • ${dateDisplay}</span>
+        </div>
+        <div class="history-item-right">
+          <span class="history-item-price">$${sale.price.toLocaleString('es-AR')}</span>
+          <button class="btn-undo" onclick="undoSale(${sale.id})">Deshacer</button>
+        </div>
+      `;
+      historyListContainer.appendChild(item);
+    });
+  }
+
+  document.getElementById('history-qty').textContent = totalQty;
+  document.getElementById('history-money').textContent = '$' + totalMoney.toLocaleString('es-AR');
+}
+
+// Deshacer venta: Restaura el stock y borra el registro
+window.undoSale = function(saleId) {
+  const saleIndex = salesHistory.findIndex(s => s.id === saleId);
+  if (saleIndex > -1) {
+    const sale = salesHistory[saleIndex];
+    // Buscar el producto original en el stock
+    const stockItem = stock.find(i => i.model === sale.model && i.flavor === sale.flavor);
+    if (stockItem) {
+      stockItem.qty += 1; // Le devolvemos 1 al stock
+    } else {
+      // Si el producto se borró por completo, lo revivimos
+      stock.push({ id: Date.now(), model: sale.model, flavor: sale.flavor, price: sale.price, qty: 1 });
+    }
+    
+    // Eliminamos el registro de venta
+    salesHistory.splice(saleIndex, 1);
+    
+    saveStock();
+    saveHistory();
+    renderHistory(); // Actualizar modal
+    showToast('↩️ Venta deshecha (+1 al stock)');
+  }
+};
 
 
 // ---------------- LÓGICA DE MODALES RESTANTES ----------------
@@ -168,12 +280,28 @@ document.getElementById('save-edit-btn').addEventListener('click', () => {
   }
 });
 
+// ---------------- ACTUALIZAR CANTIDAD Y REGISTRAR VENTA ----------------
 window.updateQty = function(id, change) {
   const item = stock.find(i => i.id === id);
   if (item) {
     if (item.qty === 0 && change < 0) return; 
+    
+    // LA MAGIA: Si restamos 1, lo consideramos una VENTA
+    if (change === -1) {
+      const now = new Date();
+      salesHistory.push({
+        id: Date.now(),
+        timestamp: now.getTime(),
+        dateStr: getTodayString(),
+        model: item.model,
+        flavor: item.flavor,
+        price: item.price || 0
+      });
+      saveHistory(); // Guardamos el historial
+    }
+
     item.qty += change;
-    saveStock();
+    saveStock(); // Guarda el stock redibuja la pantalla principal
   }
 };
 
@@ -233,7 +361,6 @@ document.getElementById('copy-price-btn').addEventListener('click', () => execut
 function render() {
   const query = searchInput.value.toLowerCase();
   
-  // El acordeón se abre si buscás ALGO o si hay un filtro aplicado
   const isSearchingOrFiltering = query.length > 0 || currentFilter !== 'all';
 
   let totalQty = 0;
@@ -259,7 +386,6 @@ function render() {
 
   stockContainer.innerHTML = '';
 
-  // 1. Filtrado por Búsqueda y por CHIPS
   const filtered = stock.filter(i => {
     const matchesSearch = i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query);
     let matchesChip = true;
