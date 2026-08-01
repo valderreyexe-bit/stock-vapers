@@ -3,6 +3,7 @@ if ('serviceWorker' in navigator) {
 }
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
+let currentFilter = 'all'; // 'all', 'low', 'out'
 
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
 const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
@@ -13,9 +14,12 @@ const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
 const toastContainer = document.getElementById('toast-container');
 
+// Modales
 const addModal = document.getElementById('add-modal');
 const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
+const settingsModal = document.getElementById('settings-modal');
+
 const modelInput = document.getElementById('model-input');
 const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
@@ -34,9 +38,57 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-document.getElementById('fab-btn').addEventListener('click', () => {
-  addModal.classList.remove('hidden');
+// ---------------- FILTROS (CHIPS) ----------------
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', (e) => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    currentFilter = e.target.dataset.filter;
+    render();
+  });
 });
+
+// ---------------- BACKUP (EXPORTAR E IMPORTAR) ----------------
+document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
+document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stock));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", "StockVape_Backup.json");
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  showToast('💾 Backup descargado con éxito');
+  settingsModal.classList.add('hidden');
+});
+
+document.getElementById('import-file').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const importedStock = JSON.parse(e.target.result);
+      if (Array.isArray(importedStock)) {
+        stock = importedStock;
+        saveStock();
+        showToast('📂 Backup restaurado con éxito');
+        settingsModal.classList.add('hidden');
+      } else {
+        alert("El archivo no es válido");
+      }
+    } catch (error) {
+      alert("Error al leer el archivo. Asegurate que sea el backup correcto.");
+    }
+  };
+  reader.readAsText(file);
+});
+
+
+// ---------------- LÓGICA DE MODALES RESTANTES ----------------
+document.getElementById('fab-btn').addEventListener('click', () => addModal.classList.remove('hidden'));
 document.getElementById('close-modal-btn').addEventListener('click', () => addModal.classList.add('hidden'));
 
 document.getElementById('btn-open-copy').addEventListener('click', () => {
@@ -177,9 +229,12 @@ function executeCopy(withPrice) {
 document.getElementById('copy-simple-btn').addEventListener('click', () => executeCopy(false));
 document.getElementById('copy-price-btn').addEventListener('click', () => executeCopy(true));
 
+// ---------------- RENDER PRINCIPAL ----------------
 function render() {
   const query = searchInput.value.toLowerCase();
-  const isSearching = query.length > 0;
+  
+  // El acordeón se abre si buscás ALGO o si hay un filtro aplicado
+  const isSearchingOrFiltering = query.length > 0 || currentFilter !== 'all';
 
   let totalQty = 0;
   let totalMoney = 0;
@@ -204,7 +259,20 @@ function render() {
 
   stockContainer.innerHTML = '';
 
-  const filtered = stock.filter(i => i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query));
+  // 1. Filtrado por Búsqueda y por CHIPS
+  const filtered = stock.filter(i => {
+    const matchesSearch = i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query);
+    let matchesChip = true;
+    
+    if (currentFilter === 'low') {
+      matchesChip = i.qty > 0 && i.qty <= 2;
+    } else if (currentFilter === 'out') {
+      matchesChip = i.qty === 0;
+    }
+
+    return matchesSearch && matchesChip;
+  });
+
   const grouped = {};
   filtered.forEach(item => {
     if (!grouped[item.model]) grouped[item.model] = [];
@@ -215,7 +283,7 @@ function render() {
     const card = document.createElement('div');
     card.className = 'model-card';
 
-    const shouldBeOpen = isSearching || openModels.has(model);
+    const shouldBeOpen = isSearchingOrFiltering || openModels.has(model);
     const collapsedClass = shouldBeOpen ? '' : 'hidden';
     const arrowClass = shouldBeOpen ? '' : 'collapsed';
     const safeModelName = model.replace(/'/g, "\\'"); 
