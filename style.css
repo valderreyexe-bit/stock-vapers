@@ -106,3 +106,38 @@ body { background: var(--bg); color: var(--text); user-select: none; }
 .toast { background: var(--success); color: #000; padding: 12px 24px; border-radius: 20px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: slideDown 0.3s ease, fadeOut 0.3s ease 2s forwards; }
 @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes fadeOut { to { opacity: 0; } }
+
+/* =========================================
+   RESPONSIVE DESIGN (Pantallas Chicas - 320px a 380px)
+   ========================================= */
+@media (max-width: 390px) {
+  .app-header { padding: 12px 10px; }
+  .app-title { font-size: 18px; }
+  .btn-copy { padding: 6px 12px; font-size: 13px; gap: 4px; }
+  .btn-icon-header { padding: 4px; }
+  
+  .dashboard { padding: 15px 10px 0; gap: 8px; }
+  .dash-card { padding: 12px 10px; border-radius: 16px; }
+  .dash-value { font-size: 18px; }
+  .dash-label { font-size: 10px; }
+  
+  .sticky-tools { top: 60px; padding-bottom: 8px; margin-bottom: 15px; }
+  .search-container { padding: 12px 10px 10px; }
+  .filter-container { padding: 0 10px; }
+  
+  .stock-list { padding: 0 10px 100px; }
+  .model-card { border-radius: 16px; }
+  .model-title { padding: 12px 10px; gap: 6px; }
+  .model-title-text { font-size: 13px; }
+  .model-price-badge { font-size: 11px; padding: 2px 6px; }
+  .icon-btn { padding: 6px; }
+  
+  .flavor-row { padding: 12px 10px; }
+  .flavor-name { font-size: 15px; }
+  .btn-qty { width: 30px; height: 30px; font-size: 18px; }
+  .qty-number { font-size: 14px; min-width: 26px; }
+  .icon-btn-small { padding: 0 8px 0 0; }
+  
+  .modal-content { padding: 20px 16px; width: 95%; }
+  .form-group input, .form-group textarea { padding: 12px; font-size: 14px; }
+}
