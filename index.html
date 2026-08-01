@@ -12,7 +12,6 @@
   <header class="app-header">
     <h1 class="app-title">💨 StockVape</h1>
     <div style="display: flex; gap: 10px;">
-      <!-- Botón de Historial (NUEVO) -->
       <button id="btn-history" class="btn-icon-header">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
       </button>
@@ -26,14 +25,24 @@
     </div>
   </header>
 
+  <!-- DASHBOARD FINANCIERO REDISEÑADO -->
   <div class="dashboard">
     <div class="dash-card">
-      <span class="dash-label">Total Stock</span>
+      <span class="dash-label">Stock Total</span>
       <span class="dash-value" id="total-qty">0 u.</span>
     </div>
     <div class="dash-card">
-      <span class="dash-label">Valor Estimado</span>
-      <span class="dash-value accent" id="total-money">$0</span>
+      <span class="dash-label">Valor Venta</span>
+      <span class="dash-value accent private-text" id="total-money">$0</span>
+    </div>
+    <div class="dash-card full" style="flex-direction: row; justify-content: space-between; align-items: center;">
+      <div>
+        <span class="dash-label" style="color: var(--warning);">Ganancia Neta (Limpia)</span>
+        <span class="dash-value private-text" style="color: var(--warning);" id="total-profit">$0</span>
+      </div>
+      <button id="btn-toggle-eye" class="btn-icon-header" style="background: rgba(255,255,255,0.05); padding: 10px;">
+        <!-- El ícono se inyecta por JS -->
+      </button>
     </div>
   </div>
 
@@ -67,17 +76,26 @@
         <label>Modelo / Marca</label>
         <input type="text" id="model-input" placeholder="Ej: Elfbar 5000">
       </div>
-      <div class="form-group">
-        <label>Precio de Venta ($)</label>
-        <input type="number" id="price-input" placeholder="Ej: 15000" min="0">
+      
+      <!-- NUEVOS CAMPOS DE PRECIOS -->
+      <div class="form-group row" style="gap: 12px;">
+        <div style="flex: 1;">
+          <label>Costo c/u ($)</label>
+          <input type="number" id="cost-input" placeholder="Ej: 8000" min="0" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+          <label>Venta c/u ($)</label>
+          <input type="number" id="price-input" placeholder="Ej: 15000" min="0" style="width: 100%;">
+        </div>
       </div>
+      
       <div class="form-group">
         <label>Sabores (Pegá una lista o separá por comas)</label>
         <textarea id="flavor-input" placeholder="Ej: Menta, Sandia..." rows="3"></textarea>
       </div>
-      <div class="form-group row">
+      <div class="form-group row" style="justify-content: flex-start; gap: 16px;">
         <label>Cantidad (para c/u):</label>
-        <input type="number" id="qty-input" value="1" min="1">
+        <input type="number" id="qty-input" value="1" min="1" style="width: 80px;">
       </div>
       <button id="save-btn" class="btn-save">Guardar Sabores</button>
     </div>
@@ -90,7 +108,7 @@
         <h3>⚙️ Ajustes y Respaldo</h3>
         <button id="close-settings-btn" class="btn-close">✕</button>
       </div>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Descargá una copia de seguridad de tu stock para no perderlo nunca.</p>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Descargá una copia de seguridad para no perder tu inventario ni ventas.</p>
       <button id="export-btn" class="btn-save" style="margin-bottom: 12px; background: var(--accent);">💾 Descargar Backup</button>
       <div style="position: relative;">
         <input type="file" id="import-file" accept=".json" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
@@ -99,7 +117,7 @@
     </div>
   </div>
 
-  <!-- MODAL HISTORIAL DE VENTAS (NUEVO) -->
+  <!-- MODAL HISTORIAL DE VENTAS -->
   <div id="history-modal" class="modal hidden">
     <div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="margin-bottom: 12px;">
@@ -107,28 +125,27 @@
         <button id="close-history-btn" class="btn-close">✕</button>
       </div>
       
-      <!-- Pestañas de Hoy / Todo -->
       <div class="history-tabs">
         <button class="history-tab active" id="tab-today">Hoy</button>
         <button class="history-tab" id="tab-all">Todo</button>
       </div>
 
-      <!-- Resumen del periodo -->
       <div class="history-summary">
         <div class="history-stat">
-          <span class="history-stat-label">Unidades vendidas</span>
+          <span class="history-stat-label">Vendidos</span>
           <span class="history-stat-value" id="history-qty">0</span>
         </div>
         <div class="history-stat">
           <span class="history-stat-label">Ingresos</span>
-          <span class="history-stat-value text-success" id="history-money">$0</span>
+          <span class="history-stat-value text-success private-text" id="history-money">$0</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-label">Ganancia</span>
+          <span class="history-stat-value private-text" style="color: var(--warning);" id="history-profit">$0</span>
         </div>
       </div>
 
-      <!-- Lista de ventas -->
-      <div id="history-list" class="history-list" style="overflow-y: auto; flex: 1;">
-        <!-- Se llena con JS -->
-      </div>
+      <div id="history-list" class="history-list" style="overflow-y: auto; flex: 1;"></div>
     </div>
   </div>
 
@@ -140,7 +157,7 @@
         <button id="close-copy-btn" class="btn-close">✕</button>
       </div>
       <button id="copy-simple-btn" class="btn-save btn-secondary" style="margin-bottom: 12px;">Solo Stock (Redes Sociales)</button>
-      <button id="copy-price-btn" class="btn-save">Stock con Precios (Clientes)</button>
+      <button id="copy-price-btn" class="btn-save">Stock con Precios de Venta</button>
     </div>
   </div>
 
@@ -156,9 +173,15 @@
         <label>Nombre del Modelo</label>
         <input type="text" id="edit-model-name">
       </div>
-      <div class="form-group">
-        <label>Precio de Venta ($)</label>
-        <input type="number" id="edit-model-price">
+      <div class="form-group row" style="gap: 12px;">
+        <div style="flex: 1;">
+          <label>Costo c/u ($)</label>
+          <input type="number" id="edit-model-cost" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+          <label>Venta c/u ($)</label>
+          <input type="number" id="edit-model-price" style="width: 100%;">
+        </div>
       </div>
       <button id="save-edit-btn" class="btn-save">Actualizar</button>
     </div>
