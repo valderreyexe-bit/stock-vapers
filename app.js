@@ -4,9 +4,12 @@ if ('serviceWorker' in navigator) {
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
 let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
+let plannedPurchases = JSON.parse(localStorage.getItem('vapePlanner')) || []; // NUEVA BASE DE DATOS
 let currentFilter = 'all'; 
 
 let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
+
+// GUARDADO DE CONFIGURACIÓN DE IMPORTACIÓN
 let savedPasero = localStorage.getItem('vapePasero') || '15';
 let savedUsdt = localStorage.getItem('vapeUsdt') || '1586';
 
@@ -25,7 +28,7 @@ const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
 const settingsModal = document.getElementById('settings-modal');
 const historyModal = document.getElementById('history-modal');
-const calculatorModal = document.getElementById('calculator-modal');
+const plannerModal = document.getElementById('planner-modal'); // NUEVO
 
 const modelInput = document.getElementById('model-input');
 const costInput = document.getElementById('cost-input');
@@ -40,14 +43,9 @@ document.getElementById('btn-toggle-eye').addEventListener('click', () => {
   renderHistory();
 });
 
-function saveStock() {
-  localStorage.setItem('vapeStock', JSON.stringify(stock));
-  render();
-}
-
-function saveHistory() {
-  localStorage.setItem('vapeSales', JSON.stringify(salesHistory));
-}
+function saveStock() { localStorage.setItem('vapeStock', JSON.stringify(stock)); render(); }
+function saveHistory() { localStorage.setItem('vapeSales', JSON.stringify(salesHistory)); }
+function savePlanner() { localStorage.setItem('vapePlanner', JSON.stringify(plannedPurchases)); }
 
 function showToast(message) {
   const toast = document.createElement('div');
@@ -57,39 +55,101 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-// CALCULADORA
-document.getElementById('btn-calculator').addEventListener('click', () => {
-  document.getElementById('calc-pasero').value = savedPasero;
-  document.getElementById('calc-usdt').value = savedUsdt;
-  runCalculator();
-  calculatorModal.classList.remove('hidden');
+// ---------------- 🛒 SIMULADOR DE FUTURAS COMPRAS ----------------
+document.getElementById('btn-planner').addEventListener('click', () => {
+  document.getElementById('plan-pasero').value = savedPasero;
+  document.getElementById('plan-usdt').value = savedUsdt;
+  renderPlanner();
+  plannerModal.classList.remove('hidden');
 });
-document.getElementById('close-calc-btn').addEventListener('click', () => calculatorModal.classList.add('hidden'));
+document.getElementById('close-planner-btn').addEventListener('click', () => plannerModal.classList.add('hidden'));
 
-['calc-usd', 'calc-pasero', 'calc-usdt', 'calc-qty'].forEach(id => {
-  document.getElementById(id).addEventListener('input', runCalculator);
+// Escucha si cambiás el valor del USDT o el Pasero y recalcula toda la lista al instante
+document.getElementById('plan-pasero').addEventListener('input', renderPlanner);
+document.getElementById('plan-usdt').addEventListener('input', renderPlanner);
+
+document.getElementById('btn-add-plan').addEventListener('click', () => {
+  const name = document.getElementById('plan-name').value.trim();
+  const usd = parseFloat(document.getElementById('plan-usd').value) || 0;
+  const price = parseFloat(document.getElementById('plan-price').value) || 0;
+  const qty = parseInt(document.getElementById('plan-qty').value) || 1;
+
+  if (!name || usd === 0 || price === 0) return alert('Por favor, llená todos los datos.');
+
+  plannedPurchases.push({ id: Date.now(), name, usd, price, qty });
+  savePlanner();
+  
+  // Limpia el formulario
+  document.getElementById('plan-name').value = '';
+  document.getElementById('plan-usd').value = '';
+  document.getElementById('plan-price').value = '';
+  document.getElementById('plan-qty').value = '1';
+  
+  renderPlanner();
+  showToast('✅ Producto añadido al simulador');
 });
 
-function runCalculator() {
-  const usd = parseFloat(document.getElementById('calc-usd').value) || 0;
-  const pasero = parseFloat(document.getElementById('calc-pasero').value) || 0;
-  const usdt = parseFloat(document.getElementById('calc-usdt').value) || 0;
-  const qty = parseInt(document.getElementById('calc-qty').value) || 1;
+window.deletePlan = function(id) {
+  plannedPurchases = plannedPurchases.filter(p => p.id !== id);
+  savePlanner();
+  renderPlanner();
+};
 
+function renderPlanner() {
+  const pasero = parseFloat(document.getElementById('plan-pasero').value) || 0;
+  const usdt = parseFloat(document.getElementById('plan-usdt').value) || 0;
+  
   localStorage.setItem('vapePasero', pasero);
   localStorage.setItem('vapeUsdt', usdt);
   savedPasero = pasero;
   savedUsdt = usdt;
 
-  const unitCostUsdt = usd * (1 + (pasero / 100));
-  const unitCostArs = unitCostUsdt * usdt;
-  const totalInvesmentArs = unitCostArs * qty;
+  const listContainer = document.getElementById('planner-list');
+  listContainer.innerHTML = '';
 
-  document.getElementById('res-usd-unit').textContent = `${unitCostUsdt.toFixed(2)} USDT`;
-  document.getElementById('res-ars-unit').textContent = `$${Math.round(unitCostArs).toLocaleString('es-AR')}`;
-  document.getElementById('res-ars-total').textContent = `$${Math.round(totalInvesmentArs).toLocaleString('es-AR')}`;
+  let totalInvest = 0;
+  let totalProfit = 0;
+
+  if (plannedPurchases.length === 0) {
+    listContainer.innerHTML = '<div class="empty-history" style="margin-top: 20px;">No agregaste ningún producto a tu futura compra.</div>';
+  } else {
+    plannedPurchases.forEach(item => {
+      // MAGIA: El costo se recalcula siempre en base a los inputs de arriba
+      const unitCostUsdt = item.usd * (1 + (pasero / 100));
+      const unitCostArs = unitCostUsdt * usdt;
+      const unitProfit = item.price - unitCostArs;
+      
+      const itemInvest = unitCostArs * item.qty;
+      const itemProfit = unitProfit * item.qty;
+
+      totalInvest += itemInvest;
+      totalProfit += itemProfit;
+
+      const div = document.createElement('div');
+      div.className = 'planner-item';
+      div.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; font-size: 15px; color: white;">${item.name} <span style="color: var(--text-muted); font-size: 12px; margin-left: 4px;">x${item.qty} u.</span></span>
+          <button class="icon-btn-small" style="color: var(--danger);" onclick="deletePlan(${item.id})">${iconTrash}</button>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <span>Costo: <b style="color: white;">$${Math.round(unitCostArs).toLocaleString('es-AR')}</b></span>
+          <span>Venta: <b style="color: white;">$${item.price.toLocaleString('es-AR')}</b></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px;">
+          <span style="color: white;">Inversión: $${Math.round(itemInvest).toLocaleString('es-AR')}</span>
+          <span style="color: var(--warning); font-weight: 700;">Ganancia: $${Math.round(itemProfit).toLocaleString('es-AR')}</span>
+        </div>
+      `;
+      listContainer.appendChild(div);
+    });
+  }
+
+  document.getElementById('plan-total-invest').textContent = `$${Math.round(totalInvest).toLocaleString('es-AR')}`;
+  document.getElementById('plan-total-profit').textContent = `$${Math.round(totalProfit).toLocaleString('es-AR')}`;
 }
 
+// ---------------- RESTO DE LA APP ----------------
 document.querySelectorAll('.filter-chip').forEach(chip => {
   chip.addEventListener('click', (e) => {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -103,7 +163,7 @@ document.getElementById('btn-settings').addEventListener('click', () => settings
 document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
 
 document.getElementById('export-btn').addEventListener('click', () => {
-  const backupData = { stock: stock, history: salesHistory };
+  const backupData = { stock: stock, history: salesHistory, planner: plannedPurchases };
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
@@ -127,9 +187,11 @@ document.getElementById('import-file').addEventListener('change', (event) => {
       } else if (data.stock) {
         stock = data.stock;
         salesHistory = data.history || [];
+        plannedPurchases = data.planner || [];
       }
       saveStock();
       saveHistory();
+      savePlanner();
       showToast('📂 Backup restaurado');
       settingsModal.classList.add('hidden');
     } catch (error) {
@@ -518,7 +580,6 @@ function render() {
     const modelCost = Math.max(...grouped[model].map(i => i.cost || 0));
     const modelProfit = modelPrice - modelCost;
 
-    // 💥 ACÁ SE INYECTA LA NUEVA ETIQUETA DE GANANCIA POR UNIDAD
     let badgesHtml = '';
     if (isEyeOpen && modelPrice > 0) {
       badgesHtml += `<div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">`;
