@@ -4,12 +4,10 @@ if ('serviceWorker' in navigator) {
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
 let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
-let plannedPurchases = JSON.parse(localStorage.getItem('vapePlanner')) || []; // NUEVA BASE DE DATOS
+let plannedPurchases = JSON.parse(localStorage.getItem('vapePlanner')) || []; 
 let currentFilter = 'all'; 
 
 let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
-
-// GUARDADO DE CONFIGURACIÓN DE IMPORTACIÓN
 let savedPasero = localStorage.getItem('vapePasero') || '15';
 let savedUsdt = localStorage.getItem('vapeUsdt') || '1586';
 
@@ -28,7 +26,7 @@ const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
 const settingsModal = document.getElementById('settings-modal');
 const historyModal = document.getElementById('history-modal');
-const plannerModal = document.getElementById('planner-modal'); // NUEVO
+const plannerModal = document.getElementById('planner-modal');
 
 const modelInput = document.getElementById('model-input');
 const costInput = document.getElementById('cost-input');
@@ -55,18 +53,47 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-// ---------------- 🛒 SIMULADOR DE FUTURAS COMPRAS ----------------
+// ---------------- 🛒 SIMULADOR INTELIGENTE ----------------
 document.getElementById('btn-planner').addEventListener('click', () => {
   document.getElementById('plan-pasero').value = savedPasero;
   document.getElementById('plan-usdt').value = savedUsdt;
   renderPlanner();
+  updatePlanSuggestion();
   plannerModal.classList.remove('hidden');
 });
 document.getElementById('close-planner-btn').addEventListener('click', () => plannerModal.classList.add('hidden'));
 
-// Escucha si cambiás el valor del USDT o el Pasero y recalcula toda la lista al instante
-document.getElementById('plan-pasero').addEventListener('input', renderPlanner);
-document.getElementById('plan-usdt').addEventListener('input', renderPlanner);
+// Magia: Cada vez que tocas un número, calcula el precio sugerido
+['plan-usd', 'plan-margin', 'plan-pasero', 'plan-usdt'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    renderPlanner(); // Actualiza la lista si cambiás el USDT/Pasero
+    updatePlanSuggestion(); // Actualiza la caja de sugerencia
+  });
+});
+
+function updatePlanSuggestion() {
+  const usd = parseFloat(document.getElementById('plan-usd').value) || 0;
+  const pasero = parseFloat(document.getElementById('plan-pasero').value) || 0;
+  const usdt = parseFloat(document.getElementById('plan-usdt').value) || 0;
+  const margin = parseFloat(document.getElementById('plan-margin').value) || 0;
+
+  if (usd === 0) {
+    document.getElementById('plan-live-cost').textContent = '$0';
+    document.getElementById('plan-price').value = '';
+    return;
+  }
+
+  // 1. Calcula el costo real en ARS
+  const unitCostUsdt = usd * (1 + (pasero / 100));
+  const costArs = unitCostUsdt * usdt;
+  document.getElementById('plan-live-cost').textContent = '$' + Math.round(costArs).toLocaleString('es-AR');
+
+  // 2. Calcula el precio sugerido y lo redondea a los cien pesos más cercanos
+  const suggested = costArs * (1 + (margin / 100));
+  const roundedSuggested = Math.round(suggested / 100) * 100;
+  
+  document.getElementById('plan-price').value = roundedSuggested;
+}
 
 document.getElementById('btn-add-plan').addEventListener('click', () => {
   const name = document.getElementById('plan-name').value.trim();
@@ -79,11 +106,11 @@ document.getElementById('btn-add-plan').addEventListener('click', () => {
   plannedPurchases.push({ id: Date.now(), name, usd, price, qty });
   savePlanner();
   
-  // Limpia el formulario
   document.getElementById('plan-name').value = '';
   document.getElementById('plan-usd').value = '';
   document.getElementById('plan-price').value = '';
   document.getElementById('plan-qty').value = '1';
+  document.getElementById('plan-live-cost').textContent = '$0';
   
   renderPlanner();
   showToast('✅ Producto añadido al simulador');
@@ -114,7 +141,6 @@ function renderPlanner() {
     listContainer.innerHTML = '<div class="empty-history" style="margin-top: 20px;">No agregaste ningún producto a tu futura compra.</div>';
   } else {
     plannedPurchases.forEach(item => {
-      // MAGIA: El costo se recalcula siempre en base a los inputs de arriba
       const unitCostUsdt = item.usd * (1 + (pasero / 100));
       const unitCostArs = unitCostUsdt * usdt;
       const unitProfit = item.price - unitCostArs;
