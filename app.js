@@ -54,11 +54,13 @@ saveBtn.addEventListener('click', () => {
     let parsedQty = baseQty;
     let cleanFlavor = flavorStr;
 
-    const qtyMatch = flavorStr.match(/(?:[-=:]|\s)\s*(\d+)\s*[uU]?\s*$/);
+    // 🔴 ACÁ ESTÁ EL ARREGLO: Agregamos \.? para que detecte el punto final de "u."
+    const qtyMatch = flavorStr.match(/(?:[-=:]|\s)\s*(\d+)\s*[uU]?\.?\s*$/);
     if (qtyMatch) {
        parsedQty = parseInt(qtyMatch[1]);
        cleanFlavor = flavorStr.replace(qtyMatch[0], '').trim();
     }
+    
     cleanFlavor = cleanFlavor.replace(/^[-•*]\s*/, '').trim();
 
     if (cleanFlavor) {
@@ -102,7 +104,6 @@ window.deleteFlavor = function(id) {
   }
 };
 
-// Función para abrir y cerrar el desplegable
 window.toggleModel = function(element) {
   const flavorsContainer = element.nextElementSibling;
   const arrow = element.querySelector('.arrow');
@@ -153,7 +154,6 @@ function render() {
     const card = document.createElement('div');
     card.className = 'model-card';
 
-    // Si estás buscando algo, la lista aparece abierta. Si no, arranca cerrada.
     const collapsedClass = isSearching ? '' : 'hidden';
     const arrowClass = isSearching ? '' : 'collapsed';
 
