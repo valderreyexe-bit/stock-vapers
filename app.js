@@ -37,7 +37,6 @@ closeModalBtn.addEventListener('click', () => {
   addModal.classList.add('hidden'); 
 });
 
-// 🚀 LÓGICA DE PEGADO MASIVO SÚPER INTELIGENTE
 saveBtn.addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
   const flavorsRaw = flavorInput.value.trim();
@@ -45,10 +44,8 @@ saveBtn.addEventListener('click', () => {
 
   if (!model || !flavorsRaw) return alert('Completá modelo y sabores');
 
-  // Separar por Enter o por Coma
   const flavors = flavorsRaw.split(/[\n,]+/)
     .map(f => f.trim())
-    // Ignorar líneas vacías o textos como "Sabores dispo:"
     .filter(f => f.length > 0 && !f.toLowerCase().includes('sabores dispo'));
   
   let addedCount = 0;
@@ -57,15 +54,11 @@ saveBtn.addEventListener('click', () => {
     let parsedQty = baseQty;
     let cleanFlavor = flavorStr;
 
-    // Buscar si el texto termina en "= 9u", "- 5", "9 u"
     const qtyMatch = flavorStr.match(/(?:[-=:]|\s)\s*(\d+)\s*[uU]?\s*$/);
     if (qtyMatch) {
        parsedQty = parseInt(qtyMatch[1]);
-       // Borramos esa cantidad del nombre para que quede limpio
        cleanFlavor = flavorStr.replace(qtyMatch[0], '').trim();
     }
-
-    // Limpiamos guiones de viñeta al principio si los tiene
     cleanFlavor = cleanFlavor.replace(/^[-•*]\s*/, '').trim();
 
     if (cleanFlavor) {
@@ -109,6 +102,14 @@ window.deleteFlavor = function(id) {
   }
 };
 
+// Función para abrir y cerrar el desplegable
+window.toggleModel = function(element) {
+  const flavorsContainer = element.nextElementSibling;
+  const arrow = element.querySelector('.arrow');
+  flavorsContainer.classList.toggle('hidden');
+  arrow.classList.toggle('collapsed');
+};
+
 copyBtn.addEventListener('click', () => {
   const available = stock.filter(i => i.qty > 0);
   if (available.length === 0) return showToast('❌ No hay stock para copiar');
@@ -134,6 +135,7 @@ copyBtn.addEventListener('click', () => {
 
 function render() {
   const query = searchInput.value.toLowerCase();
+  const isSearching = query.length > 0;
   stockContainer.innerHTML = '';
 
   const filtered = stock.filter(i => 
@@ -150,7 +152,20 @@ function render() {
   for (const model in grouped) {
     const card = document.createElement('div');
     card.className = 'model-card';
-    card.innerHTML = `<div class="model-title">${model}</div>`;
+
+    // Si estás buscando algo, la lista aparece abierta. Si no, arranca cerrada.
+    const collapsedClass = isSearching ? '' : 'hidden';
+    const arrowClass = isSearching ? '' : 'collapsed';
+
+    card.innerHTML = `
+      <div class="model-title" onclick="toggleModel(this)">
+        <span>${model}</span>
+        <span class="arrow ${arrowClass}">▼</span>
+      </div>
+      <div class="model-flavors ${collapsedClass}"></div>
+    `;
+
+    const flavorsContainer = card.querySelector('.model-flavors');
 
     grouped[model].forEach(item => {
       const row = document.createElement('div');
@@ -168,7 +183,7 @@ function render() {
           <button class="btn-qty btn-plus" onclick="updateQty(${item.id}, 1)">+</button>
         </div>
       `;
-      card.appendChild(row);
+      flavorsContainer.appendChild(row);
     });
 
     stockContainer.appendChild(card);
