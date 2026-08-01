@@ -1,51 +1,206 @@
 :root {
-  --bg: #121214; --card: #202024; --accent: #8257e5;
-  --text: #e1e1e6; --green: #04d361; --red: #f75a68;
+  --bg: #000000; /* Negro puro estilo OLED de Apple */
+  --card: rgba(28, 28, 30, 0.6); /* Gris translúcido */
+  --card-border: rgba(255, 255, 255, 0.08);
+  --accent: #0A84FF; /* Azul iOS */
+  --text: #F2F2F7;
+  --text-muted: #8E8E93;
+  --green: #30D158;
+  --red: #FF453A;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-body { background: var(--bg); color: var(--text); padding: 15px; user-select: none; }
-.container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-h1 { font-size: 1.3rem; margin: 0; }
-.btn { border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
-.btn-whatsapp { background: var(--green); color: #000; box-shadow: 0 4px 6px rgba(4, 211, 97, 0.2); }
-.btn-green { background: var(--green); color: #000; padding: 12px;}
-.btn-red { background: #323238; color: #fff; padding: 12px; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+  /* Tipografía nativa de Apple */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; 
+  -webkit-tap-highlight-color: transparent; /* Saca el fondo azul feo al tocar en Android */
+}
 
-.search-bar { width: 100%; background: var(--card); border: 1px solid #323238; color: #fff; padding: 14px; border-radius: 10px; font-size: 1rem; margin-bottom: 20px; outline: none; transition: border 0.2s; }
-.search-bar:focus { border-color: var(--accent); }
+body { 
+  background: var(--bg); 
+  color: var(--text); 
+  padding: 15px; 
+  user-select: none; 
+}
 
-.model-card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-.model-title { font-size: 1.1rem; color: var(--accent); margin-bottom: 12px; border-bottom: 1px solid #323238; padding-bottom: 8px; font-weight: bold; text-transform: uppercase; }
+.container { max-width: 500px; margin: 0 auto; padding-bottom: 90px; }
 
-.flavor-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+/* Header Flotante con Desenfoque (Blur) */
+header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 25px; 
+  position: sticky;
+  top: 0;
+  padding: 15px 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10;
+}
+
+h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+
+.btn { 
+  border: none; 
+  padding: 12px 18px; 
+  border-radius: 12px; 
+  cursor: pointer; 
+  font-weight: 600; 
+  font-size: 0.95rem; 
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.btn:active { transform: scale(0.95); opacity: 0.8; }
+.btn-whatsapp { background: var(--green); color: #000; }
+.btn-green { background: var(--accent); color: #fff; } /* Cambiado a Azul Apple */
+.btn-red { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+/* Buscador Premium */
+.search-bar { 
+  width: 100%; 
+  background: rgba(118, 118, 128, 0.24); 
+  border: 1px solid transparent; 
+  color: #fff; 
+  padding: 14px 18px; 
+  border-radius: 14px; 
+  font-size: 1.05rem; 
+  margin-bottom: 25px; 
+  outline: none; 
+  transition: all 0.3s ease;
+}
+.search-bar:focus { 
+  background: rgba(118, 118, 128, 0.35);
+  border: 1px solid var(--accent);
+}
+.search-bar::placeholder { color: var(--text-muted); }
+
+/* Tarjetas de Modelos (Glassmorphism) */
+.model-card { 
+  background: var(--card); 
+  border: 1px solid var(--card-border); 
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px; 
+  padding: 18px; 
+  margin-bottom: 20px; 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.model-title { 
+  font-size: 1.1rem; 
+  color: var(--text-muted); 
+  margin-bottom: 15px; 
+  border-bottom: 1px solid rgba(255,255,255,0.05); 
+  padding-bottom: 10px; 
+  font-weight: 600; 
+  text-transform: uppercase; 
+  letter-spacing: 1px;
+}
+
+.flavor-row { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 12px 0; 
+  border-bottom: 1px solid rgba(255,255,255,0.03); 
+}
 .flavor-row:last-child { border-bottom: none; padding-bottom: 0; }
-.flavor-name { font-size: 1rem; flex: 1; font-weight: 500;}
+.flavor-name { font-size: 1.05rem; flex: 1; font-weight: 500; }
 
-.controls { display: flex; align-items: center; gap: 15px; }
-.btn-qty { width: 44px; height: 44px; border-radius: 10px; border: none; font-size: 1.6rem; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer;}
-.btn-minus { background: #29292e; color: #fff; }
-.btn-minus:active { background: var(--red); }
-.btn-plus { background: #29292e; color: #fff; }
-.btn-plus:active { background: var(--green); color: #000; }
-.qty-number { font-weight: bold; font-size: 1.2rem; min-width: 30px; text-align: center; }
+.controls { display: flex; align-items: center; gap: 18px; }
 
-/* Agotado / Alerta */
-.out-of-stock { opacity: 0.5; }
+/* Botones + y - estilo iOS */
+.btn-qty { 
+  width: 40px; 
+  height: 40px; 
+  border-radius: 12px; 
+  border: none; 
+  font-size: 1.5rem; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent);
+  transition: all 0.2s;
+}
+.btn-qty:active { background: rgba(255, 255, 255, 0.2); transform: scale(0.9); }
+.qty-number { font-weight: 600; font-size: 1.2rem; min-width: 32px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Estados */
+.out-of-stock { opacity: 0.4; filter: grayscale(100%); }
 .out-of-stock .qty-number { color: var(--red); }
-.low-stock .qty-number { color: #eba417; } /* Naranja para advertencia */
+.low-stock .qty-number { color: #FF9F0A; } /* Naranja Apple */
 
-/* Botón flotante */
-.fab { position: fixed; bottom: 20px; right: 20px; background: var(--accent); color: white; width: 65px; height: 65px; border-radius: 50%; font-size: 2rem; border: none; box-shadow: 0 4px 15px rgba(130, 87, 229, 0.4); cursor: pointer; display: flex; justify-content: center; align-items: center; z-index: 90;}
-.fab:active { transform: scale(0.95); }
+/* Botón Flotante Moderno */
+.fab { 
+  position: fixed; 
+  bottom: 30px; 
+  right: 30px; 
+  background: var(--accent); 
+  color: white; 
+  width: 60px; 
+  height: 60px; 
+  border-radius: 20px; /* Cuadrado redondeado en vez de círculo */
+  font-size: 2rem; 
+  border: none; 
+  box-shadow: 0 8px 24px rgba(10, 132, 255, 0.4); 
+  cursor: pointer; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 90;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.fab:active { transform: scale(0.9); }
 
-/* Modal Bottom Sheet */
-.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: flex-end; z-index: 100; transition: opacity 0.3s; }
-.modal.hidden { display: none; opacity: 0; }
-.modal-content { background: var(--bg); width: 100%; padding: 25px; border-radius: 24px 24px 0 0; animation: slideUp 0.3s ease-out; }
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+/* MODAL CORREGIDO (Centrado para que el teclado no joda) */
+.modal { 
+  position: fixed; 
+  top: 0; left: 0; width: 100%; height: 100%; 
+  background: rgba(0,0,0,0.6); 
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex; 
+  align-items: center; /* ACÁ ESTÁ LA MAGIA: CENTRADO */
+  justify-content: center; 
+  padding: 20px;
+  z-index: 100; 
+  transition: opacity 0.3s ease; 
+}
+.modal.hidden { display: none; opacity: 0; pointer-events: none; }
 
-.modal-content h3 { margin-bottom: 20px; text-align: center; font-size: 1.2rem;}
-.form-group input { width: 100%; background: var(--card); border: 1px solid #323238; color: #fff; padding: 14px; border-radius: 10px; font-size: 1rem; margin-bottom: 12px; outline: none; }
-.form-group input:focus { border-color: var(--accent); }
+.modal-content { 
+  background: rgba(30, 30, 32, 0.85); 
+  width: 100%; 
+  max-width: 380px;
+  padding: 25px; 
+  border-radius: 24px; 
+  border: 1px solid var(--card-border);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+}
+
+@keyframes scaleIn { 
+  from { transform: scale(0.9); opacity: 0; } 
+  to { transform: scale(1); opacity: 1; } 
+}
+
+.modal-content h3 { margin-bottom: 25px; text-align: center; font-size: 1.3rem; font-weight: 600;}
+
+.form-group input { 
+  width: 100%; 
+  background: rgba(0,0,0,0.3); 
+  border: 1px solid rgba(255,255,255,0.1); 
+  color: #fff; 
+  padding: 16px; 
+  border-radius: 14px; 
+  font-size: 1rem; 
+  margin-bottom: 15px; 
+  outline: none; 
+  transition: all 0.2s;
+}
+.form-group input:focus { border-color: var(--accent); background: rgba(0,0,0,0.5); }
