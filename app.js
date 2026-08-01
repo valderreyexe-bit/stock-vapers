@@ -3,29 +3,42 @@ if ('serviceWorker' in navigator) {
 }
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
-let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || []; // NUEVA BASE DE DATOS
+let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
 let currentFilter = 'all'; 
+
+// Privacidad (Ojito)
+let isEyeOpen = localStorage.getItem('vapeEye') !== 'false'; // Por defecto abierto
 
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
 const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 const iconChevron = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 const iconDeleteFlavor = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
 
+const iconEyeOpen = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+const iconEyeClosed = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
 const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
 const toastContainer = document.getElementById('toast-container');
-
-// Modales
 const addModal = document.getElementById('add-modal');
 const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
 const settingsModal = document.getElementById('settings-modal');
-const historyModal = document.getElementById('history-modal'); // NUEVO
+const historyModal = document.getElementById('history-modal');
 
 const modelInput = document.getElementById('model-input');
+const costInput = document.getElementById('cost-input'); // NUEVO
 const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
+
+// EVENTO OJITO
+document.getElementById('btn-toggle-eye').addEventListener('click', () => {
+  isEyeOpen = !isEyeOpen;
+  localStorage.setItem('vapeEye', isEyeOpen);
+  render();
+  renderHistory();
+});
 
 function saveStock() {
   localStorage.setItem('vapeStock', JSON.stringify(stock));
@@ -44,7 +57,6 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-// ---------------- FILTROS (CHIPS) ----------------
 document.querySelectorAll('.filter-chip').forEach(chip => {
   chip.addEventListener('click', (e) => {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -54,7 +66,6 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
   });
 });
 
-// ---------------- BACKUP (MODIFICADO PARA GUARDAR HISTORIAL TAMBIÉN) ----------------
 document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
 document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
 
@@ -79,10 +90,8 @@ document.getElementById('import-file').addEventListener('change', (event) => {
     try {
       const data = JSON.parse(e.target.result);
       if (Array.isArray(data)) {
-        // Backup viejo (solo stock)
         stock = data;
       } else if (data.stock) {
-        // Backup nuevo (stock + historia)
         stock = data.stock;
         salesHistory = data.history || [];
       }
@@ -97,9 +106,8 @@ document.getElementById('import-file').addEventListener('change', (event) => {
   reader.readAsText(file);
 });
 
-
-// ---------------- LÓGICA DE HISTORIAL DE VENTAS ----------------
-let historyView = 'today'; // 'today' o 'all'
+// HISTORIAL DE VENTAS
+let historyView = 'today';
 
 document.getElementById('btn-history').addEventListener('click', () => {
   renderHistory();
@@ -107,13 +115,13 @@ document.getElementById('btn-history').addEventListener('click', () => {
 });
 document.getElementById('close-history-btn').addEventListener('click', () => historyModal.classList.add('hidden'));
 
-document.getElementById('tab-today').addEventListener('click', (e) => {
+document.getElementById('tab-today').addEventListener('click', () => {
   historyView = 'today';
   document.getElementById('tab-today').classList.add('active');
   document.getElementById('tab-all').classList.remove('active');
   renderHistory();
 });
-document.getElementById('tab-all').addEventListener('click', (e) => {
+document.getElementById('tab-all').addEventListener('click', () => {
   historyView = 'all';
   document.getElementById('tab-all').classList.add('active');
   document.getElementById('tab-today').classList.remove('active');
@@ -122,23 +130,22 @@ document.getElementById('tab-all').addEventListener('click', (e) => {
 
 function getTodayString() {
   const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`; // "2026-8-1"
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
 function renderHistory() {
   const historyListContainer = document.getElementById('history-list');
   const todayStr = getTodayString();
   
-  // Filtrar si es "hoy"
   let displaySales = historyView === 'today' 
     ? salesHistory.filter(s => s.dateStr === todayStr) 
     : salesHistory;
     
-  // Ordenar de más reciente a más antiguo
   displaySales = displaySales.sort((a, b) => b.timestamp - a.timestamp);
 
   let totalQty = 0;
   let totalMoney = 0;
+  let totalCost = 0;
 
   historyListContainer.innerHTML = '';
 
@@ -147,12 +154,15 @@ function renderHistory() {
   } else {
     displaySales.forEach(sale => {
       totalQty += 1;
-      totalMoney += sale.price;
+      totalMoney += (sale.price || 0);
+      totalCost += (sale.cost || 0);
 
-      // Formatear hora (ej: 15:30)
       const dateObj = new Date(sale.timestamp);
       const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
       const dateDisplay = historyView === 'all' ? dateObj.toLocaleDateString() + ' ' + timeStr : timeStr;
+      
+      // Aplicar ojito a la lista del historial
+      const priceText = isEyeOpen ? `$${(sale.price || 0).toLocaleString('es-AR')}` : '***';
 
       const item = document.createElement('div');
       item.className = 'history-item';
@@ -162,7 +172,7 @@ function renderHistory() {
           <span class="history-item-subtitle">${sale.flavor} • ${dateDisplay}</span>
         </div>
         <div class="history-item-right">
-          <span class="history-item-price">$${sale.price.toLocaleString('es-AR')}</span>
+          <span class="history-item-price private-text">${priceText}</span>
           <button class="btn-undo" onclick="undoSale(${sale.id})">Deshacer</button>
         </div>
       `;
@@ -170,36 +180,32 @@ function renderHistory() {
     });
   }
 
+  const profit = totalMoney - totalCost;
+
   document.getElementById('history-qty').textContent = totalQty;
-  document.getElementById('history-money').textContent = '$' + totalMoney.toLocaleString('es-AR');
+  document.getElementById('history-money').textContent = isEyeOpen ? '$' + totalMoney.toLocaleString('es-AR') : '***';
+  document.getElementById('history-profit').textContent = isEyeOpen ? '$' + profit.toLocaleString('es-AR') : '***';
 }
 
-// Deshacer venta: Restaura el stock y borra el registro
 window.undoSale = function(saleId) {
   const saleIndex = salesHistory.findIndex(s => s.id === saleId);
   if (saleIndex > -1) {
     const sale = salesHistory[saleIndex];
-    // Buscar el producto original en el stock
     const stockItem = stock.find(i => i.model === sale.model && i.flavor === sale.flavor);
     if (stockItem) {
-      stockItem.qty += 1; // Le devolvemos 1 al stock
+      stockItem.qty += 1;
     } else {
-      // Si el producto se borró por completo, lo revivimos
-      stock.push({ id: Date.now(), model: sale.model, flavor: sale.flavor, price: sale.price, qty: 1 });
+      stock.push({ id: Date.now(), model: sale.model, flavor: sale.flavor, price: sale.price, cost: sale.cost, qty: 1 });
     }
     
-    // Eliminamos el registro de venta
     salesHistory.splice(saleIndex, 1);
-    
     saveStock();
     saveHistory();
-    renderHistory(); // Actualizar modal
+    renderHistory();
     showToast('↩️ Venta deshecha (+1 al stock)');
   }
 };
 
-
-// ---------------- LÓGICA DE MODALES RESTANTES ----------------
 document.getElementById('fab-btn').addEventListener('click', () => addModal.classList.remove('hidden'));
 document.getElementById('close-modal-btn').addEventListener('click', () => addModal.classList.add('hidden'));
 
@@ -212,6 +218,7 @@ document.getElementById('close-edit-btn').addEventListener('click', () => editMo
 
 document.getElementById('save-btn').addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
+  const cost = parseInt(costInput.value) || 0; // NUEVO
   const price = parseInt(priceInput.value) || 0;
   const flavorsRaw = flavorInput.value.trim();
   const baseQty = parseInt(qtyInput.value) || 1;
@@ -237,8 +244,9 @@ document.getElementById('save-btn').addEventListener('click', () => {
       if (existing) {
         existing.qty += parsedQty;
         if(price > 0) existing.price = price;
+        if(cost > 0) existing.cost = cost; // Actualiza costo
       } else {
-        stock.push({ id: Date.now() + Math.random(), model, price, flavor: cleanFlavor, qty: parsedQty });
+        stock.push({ id: Date.now() + Math.random(), model, cost, price, flavor: cleanFlavor, qty: parsedQty });
       }
       addedCount++;
     }
@@ -254,10 +262,12 @@ document.getElementById('save-btn').addEventListener('click', () => {
 window.openEditModal = function(event, oldName) {
   event.stopPropagation();
   const currentItems = stock.filter(i => i.model === oldName);
+  const currentCost = currentItems.length > 0 ? (currentItems[0].cost || 0) : 0;
   const currentPrice = currentItems.length > 0 ? (currentItems[0].price || 0) : 0;
   
   document.getElementById('edit-old-name').value = oldName;
   document.getElementById('edit-model-name').value = oldName;
+  document.getElementById('edit-model-cost').value = currentCost;
   document.getElementById('edit-model-price').value = currentPrice;
   editModal.classList.remove('hidden');
 };
@@ -265,12 +275,14 @@ window.openEditModal = function(event, oldName) {
 document.getElementById('save-edit-btn').addEventListener('click', () => {
   const oldName = document.getElementById('edit-old-name').value;
   const newName = document.getElementById('edit-model-name').value.trim().toUpperCase();
+  const newCost = parseInt(document.getElementById('edit-model-cost').value) || 0;
   const newPrice = parseInt(document.getElementById('edit-model-price').value) || 0;
 
   if(newName) {
     stock.forEach(item => {
       if (item.model === oldName) {
         item.model = newName;
+        item.cost = newCost;
         item.price = newPrice;
       }
     });
@@ -280,13 +292,12 @@ document.getElementById('save-edit-btn').addEventListener('click', () => {
   }
 });
 
-// ---------------- ACTUALIZAR CANTIDAD Y REGISTRAR VENTA ----------------
 window.updateQty = function(id, change) {
   const item = stock.find(i => i.id === id);
   if (item) {
     if (item.qty === 0 && change < 0) return; 
     
-    // LA MAGIA: Si restamos 1, lo consideramos una VENTA
+    // GUARDAR VENTA INCLUYENDO EL COSTO
     if (change === -1) {
       const now = new Date();
       salesHistory.push({
@@ -295,13 +306,14 @@ window.updateQty = function(id, change) {
         dateStr: getTodayString(),
         model: item.model,
         flavor: item.flavor,
+        cost: item.cost || 0,
         price: item.price || 0
       });
-      saveHistory(); // Guardamos el historial
+      saveHistory();
     }
 
     item.qty += change;
-    saveStock(); // Guarda el stock redibuja la pantalla principal
+    saveStock(); 
   }
 };
 
@@ -359,20 +371,31 @@ document.getElementById('copy-price-btn').addEventListener('click', () => execut
 
 // ---------------- RENDER PRINCIPAL ----------------
 function render() {
+  // Configura el ícono del ojito según el estado guardado
+  document.getElementById('btn-toggle-eye').innerHTML = isEyeOpen ? iconEyeOpen : iconEyeClosed;
+
   const query = searchInput.value.toLowerCase();
-  
   const isSearchingOrFiltering = query.length > 0 || currentFilter !== 'all';
 
   let totalQty = 0;
   let totalMoney = 0;
+  let totalCost = 0;
+  
   stock.forEach(i => {
     if (i.qty > 0) {
       totalQty += i.qty;
       totalMoney += (i.qty * (i.price || 0));
+      totalCost += (i.qty * (i.cost || 0));
     }
   });
+  
+  const totalProfit = totalMoney - totalCost;
+
   document.getElementById('total-qty').textContent = totalQty + ' u.';
-  document.getElementById('total-money').textContent = '$' + totalMoney.toLocaleString('es-AR');
+  
+  // Aplica censura si el ojito está cerrado
+  document.getElementById('total-money').textContent = isEyeOpen ? '$' + totalMoney.toLocaleString('es-AR') : '***';
+  document.getElementById('total-profit').textContent = isEyeOpen ? '$' + totalProfit.toLocaleString('es-AR') : '***';
 
   const openModels = new Set();
   document.querySelectorAll('.model-card').forEach(card => {
@@ -415,11 +438,14 @@ function render() {
     const safeModelName = model.replace(/'/g, "\\'"); 
     const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
 
+    // Si el ojito está cerrado, oculta los precios de venta también en la lista
+    const badgePriceStr = (modelPrice > 0 && isEyeOpen) ? `<span class="model-price-badge">$ ${modelPrice.toLocaleString('es-AR')}</span>` : '';
+
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
         <div class="model-title-left">
           <span class="model-title-text">${model}</span>
-          ${modelPrice > 0 ? `<span class="model-price-badge">$ ${modelPrice.toLocaleString('es-AR')}</span>` : ''}
+          ${badgePriceStr}
         </div>
         <div class="model-title-right">
           <button class="icon-btn" onclick="openEditModal(event, '${safeModelName}')">${iconEdit}</button>
