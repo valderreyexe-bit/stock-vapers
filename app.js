@@ -4,23 +4,18 @@ if ('serviceWorker' in navigator) {
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
 
-// Íconos Vectoriales Perfectos
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
 const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 const iconChevron = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-// Ícono de eliminar sabor (Círculo rojo con menos)
 const iconDeleteFlavor = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
 
 const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
 const toastContainer = document.getElementById('toast-container');
 
-// Modales
 const addModal = document.getElementById('add-modal');
 const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
-
-// Inputs Carga
 const modelInput = document.getElementById('model-input');
 const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
@@ -39,8 +34,9 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-// ---------------- LÓGICA DE MODALES ----------------
-document.getElementById('fab-btn').addEventListener('click', () => addModal.classList.remove('hidden'));
+document.getElementById('fab-btn').addEventListener('click', () => {
+  addModal.classList.remove('hidden');
+});
 document.getElementById('close-modal-btn').addEventListener('click', () => addModal.classList.add('hidden'));
 
 document.getElementById('btn-open-copy').addEventListener('click', () => {
@@ -50,7 +46,6 @@ document.getElementById('btn-open-copy').addEventListener('click', () => {
 document.getElementById('close-copy-btn').addEventListener('click', () => copyModal.classList.add('hidden'));
 document.getElementById('close-edit-btn').addEventListener('click', () => editModal.classList.add('hidden'));
 
-// ---------------- GUARDAR NUEVO ----------------
 document.getElementById('save-btn').addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
   const price = parseInt(priceInput.value) || 0;
@@ -77,7 +72,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
       const existing = stock.find(i => i.model === model && i.flavor.toLowerCase() === cleanFlavor.toLowerCase());
       if (existing) {
         existing.qty += parsedQty;
-        if(price > 0) existing.price = price; // Actualiza precio
+        if(price > 0) existing.price = price;
       } else {
         stock.push({ id: Date.now() + Math.random(), model, price, flavor: cleanFlavor, qty: parsedQty });
       }
@@ -92,7 +87,6 @@ document.getElementById('save-btn').addEventListener('click', () => {
   flavorInput.focus();
 });
 
-// ---------------- EDICIÓN ----------------
 window.openEditModal = function(event, oldName) {
   event.stopPropagation();
   const currentItems = stock.filter(i => i.model === oldName);
@@ -122,7 +116,6 @@ document.getElementById('save-edit-btn').addEventListener('click', () => {
   }
 });
 
-// ---------------- ACCIONES ----------------
 window.updateQty = function(id, change) {
   const item = stock.find(i => i.id === id);
   if (item) {
@@ -156,7 +149,6 @@ window.toggleModel = function(element) {
   arrow.classList.toggle('collapsed');
 };
 
-// ---------------- COPIAR A WHATSAPP ----------------
 function executeCopy(withPrice) {
   const available = stock.filter(i => i.qty > 0);
   let text = "🔥 *STOCK DISPONIBLE* 🔥\n\n";
@@ -185,12 +177,10 @@ function executeCopy(withPrice) {
 document.getElementById('copy-simple-btn').addEventListener('click', () => executeCopy(false));
 document.getElementById('copy-price-btn').addEventListener('click', () => executeCopy(true));
 
-// ---------------- RENDER PRINCIPAL ----------------
 function render() {
   const query = searchInput.value.toLowerCase();
   const isSearching = query.length > 0;
 
-  // Actualizar Dashboard
   let totalQty = 0;
   let totalMoney = 0;
   stock.forEach(i => {
@@ -231,7 +221,6 @@ function render() {
     const safeModelName = model.replace(/'/g, "\\'"); 
     const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
 
-    // ESTRUCTURA DEL TÍTULO (Limpia)
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
         <div class="model-title-left">
@@ -240,7 +229,7 @@ function render() {
         </div>
         <div class="model-title-right">
           <button class="icon-btn" onclick="openEditModal(event, '${safeModelName}')">${iconEdit}</button>
-          <button class="icon-btn" onclick="deleteModel(event, '${safeModelName}')">${iconTrash}</button>
+          <button class="icon-btn danger" onclick="deleteModel(event, '${safeModelName}')">${iconTrash}</button>
           ${iconChevron}
         </div>
       </div>
@@ -257,7 +246,6 @@ function render() {
       if (item.qty === 0) badgeHtml = '<span class="badge badge-danger">Agotado</span>';
       else if (item.qty <= 2) badgeHtml = '<span class="badge badge-warning">Quedan ' + item.qty + '</span>';
 
-      // ESTRUCTURA DEL SABOR (Ícono iOS y Stepper de Píldora)
       row.innerHTML = `
         <div class="flavor-header">
           <button class="icon-btn-small" onclick="deleteFlavor(${item.id})">${iconDeleteFlavor}</button>
