@@ -47,12 +47,10 @@ body { background: var(--bg); color: var(--text); user-select: none; max-width: 
 .model-title-left { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .model-title-text { font-size: clamp(13px, 4vw, 15px); font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;}
 
-/* NUEVAS ETIQUETAS DE PRECIO Y GANANCIA */
 .model-price-badge { background: rgba(10, 132, 255, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; width: fit-content; }
 .model-profit-badge { background: rgba(255, 159, 10, 0.15); color: var(--warning); padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; width: fit-content; }
 
 .model-title-right { display: flex; align-items: center; gap: 4px; }
-
 .icon-btn { background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 12px; transition: 0.2s;}
 .icon-btn:active { background: rgba(255,255,255,0.1); color: white;}
 .icon-btn-small { background: transparent; border: none; padding: 0 10px 0 0; cursor: pointer; display: flex; align-items: center; opacity: 0.8; }
@@ -84,7 +82,7 @@ body { background: var(--bg); color: var(--text); user-select: none; max-width: 
 .fab:active { transform: scale(0.92); }
 @media (min-width: 501px) { .fab { right: calc(50% - 250px + 20px); } }
 
-/* Modales */
+/* Modales y utilidades */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: flex-start; padding-top: 10vh; z-index: 100; transition: opacity 0.2s; }
 .action-sheet { align-items: flex-end; padding-top: 0; }
 .action-sheet .modal-content { border-radius: 24px 24px 0 0; width: 100%; max-width: 500px; margin-bottom: 0; padding-bottom: 40px; }
@@ -118,7 +116,6 @@ body { background: var(--bg); color: var(--text); user-select: none; max-width: 
 .history-stat-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
 .history-stat-value { font-size: 16px; font-weight: 700; color: white; }
 .text-success { color: var(--success); }
-
 .history-list { display: flex; flex-direction: column; gap: 8px; }
 .history-item { background: var(--surface-light); padding: 12px 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
 .history-item-left { display: flex; flex-direction: column; gap: 4px; }
@@ -129,6 +126,9 @@ body { background: var(--bg); color: var(--text); user-select: none; max-width: 
 .btn-undo { font-size: 11px; color: var(--accent); background: transparent; border: none; font-weight: 600; cursor: pointer; text-decoration: underline; opacity: 0.8;}
 .btn-undo:active { opacity: 0.4; }
 .empty-history { text-align: center; color: var(--text-muted); font-size: 14px; padding: 20px 0; }
+
+/* NUEVO: TARJETAS DEL SIMULADOR */
+.planner-item { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;}
 
 @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes fadeOut { to { opacity: 0; } }
