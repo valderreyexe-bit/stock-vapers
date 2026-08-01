@@ -54,7 +54,6 @@ saveBtn.addEventListener('click', () => {
     let parsedQty = baseQty;
     let cleanFlavor = flavorStr;
 
-    // 🔴 ACÁ ESTÁ EL ARREGLO: Agregamos \.? para que detecte el punto final de "u."
     const qtyMatch = flavorStr.match(/(?:[-=:]|\s)\s*(\d+)\s*[uU]?\.?\s*$/);
     if (qtyMatch) {
        parsedQty = parseInt(qtyMatch[1]);
@@ -137,6 +136,17 @@ copyBtn.addEventListener('click', () => {
 function render() {
   const query = searchInput.value.toLowerCase();
   const isSearching = query.length > 0;
+
+  // 🧠 LA MAGIA: Guardamos qué modelos están abiertos antes de borrar la pantalla
+  const openModels = new Set();
+  document.querySelectorAll('.model-card').forEach(card => {
+    const title = card.querySelector('.model-title span').textContent;
+    const flavors = card.querySelector('.model-flavors');
+    if (!flavors.classList.contains('hidden')) {
+      openModels.add(title);
+    }
+  });
+
   stockContainer.innerHTML = '';
 
   const filtered = stock.filter(i => 
@@ -154,8 +164,10 @@ function render() {
     const card = document.createElement('div');
     card.className = 'model-card';
 
-    const collapsedClass = isSearching ? '' : 'hidden';
-    const arrowClass = isSearching ? '' : 'collapsed';
+    // 🧠 LA MAGIA PARTE 2: Si estaba abierto o estás buscando, lo dejamos abierto
+    const shouldBeOpen = isSearching || openModels.has(model);
+    const collapsedClass = shouldBeOpen ? '' : 'hidden';
+    const arrowClass = shouldBeOpen ? '' : 'collapsed';
 
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
