@@ -6,7 +6,6 @@ let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
 let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
 let currentFilter = 'all'; 
 
-// Privacidad (Ojito)
 let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
 
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
@@ -31,7 +30,6 @@ const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
 
-// EVENTO OJITO
 document.getElementById('btn-toggle-eye').addEventListener('click', () => {
   isEyeOpen = !isEyeOpen;
   localStorage.setItem('vapeEye', isEyeOpen);
@@ -113,6 +111,17 @@ document.getElementById('btn-history').addEventListener('click', () => {
   historyModal.classList.remove('hidden');
 });
 document.getElementById('close-history-btn').addEventListener('click', () => historyModal.classList.add('hidden'));
+
+// BOTÓN PARA VACIAR EL HISTORIAL
+document.getElementById('btn-clear-history').addEventListener('click', () => {
+  if (salesHistory.length === 0) return showToast('El historial ya está vacío');
+  if (confirm('¿Seguro que querés borrar TODO el historial de ventas? (Tu stock actual quedará intacto)')) {
+    salesHistory = [];
+    saveHistory();
+    renderHistory();
+    showToast('🗑️ Historial borrado');
+  }
+});
 
 document.getElementById('tab-today').addEventListener('click', () => {
   historyView = 'today';
@@ -223,7 +232,6 @@ document.getElementById('save-btn').addEventListener('click', () => {
 
   if (!model || !flavorsRaw) return alert('Completá modelo y sabores');
 
-  // 💥 ARREGLO DE HERENCIA: Si el modelo ya existe, hereda sus precios para que no queden en $0
   const existingModelItems = stock.filter(i => i.model === model);
   if (existingModelItems.length > 0) {
     if (cost === 0) cost = existingModelItems[0].cost || 0;
