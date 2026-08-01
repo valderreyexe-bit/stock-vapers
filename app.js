@@ -8,6 +8,10 @@ let currentFilter = 'all';
 
 let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
 
+// CARGA DE VALORES GUARDADOS (Calculadora)
+let savedPasero = localStorage.getItem('vapePasero') || '15';
+let savedUsdt = localStorage.getItem('vapeUsdt') || '1586';
+
 const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
 const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 const iconChevron = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
@@ -18,11 +22,14 @@ const iconEyeClosed = `<svg width="20" height="20" viewBox="0 0 24 24" fill="non
 const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
 const toastContainer = document.getElementById('toast-container');
+
+// Modales
 const addModal = document.getElementById('add-modal');
 const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
 const settingsModal = document.getElementById('settings-modal');
 const historyModal = document.getElementById('history-modal');
+const calculatorModal = document.getElementById('calculator-modal'); // NUEVO
 
 const modelInput = document.getElementById('model-input');
 const costInput = document.getElementById('cost-input');
@@ -30,6 +37,7 @@ const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
 
+// EVENTO OJITO
 document.getElementById('btn-toggle-eye').addEventListener('click', () => {
   isEyeOpen = !isEyeOpen;
   localStorage.setItem('vapeEye', isEyeOpen);
@@ -54,6 +62,44 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
+// ---------------- CALCULADORA DE IMPORTACIÓN ----------------
+document.getElementById('btn-calculator').addEventListener('click', () => {
+  document.getElementById('calc-pasero').value = savedPasero;
+  document.getElementById('calc-usdt').value = savedUsdt;
+  runCalculator(); // Corre la cuenta por si ya había algo
+  calculatorModal.classList.remove('hidden');
+});
+document.getElementById('close-calc-btn').addEventListener('click', () => calculatorModal.classList.add('hidden'));
+
+// Escuchamos los cambios en los inputs para calcular en tiempo real
+['calc-usd', 'calc-pasero', 'calc-usdt', 'calc-qty'].forEach(id => {
+  document.getElementById(id).addEventListener('input', runCalculator);
+});
+
+function runCalculator() {
+  const usd = parseFloat(document.getElementById('calc-usd').value) || 0;
+  const pasero = parseFloat(document.getElementById('calc-pasero').value) || 0;
+  const usdt = parseFloat(document.getElementById('calc-usdt').value) || 0;
+  const qty = parseInt(document.getElementById('calc-qty').value) || 1;
+
+  // Guardamos las configuraciones para no escribirlas cada vez
+  localStorage.setItem('vapePasero', pasero);
+  localStorage.setItem('vapeUsdt', usdt);
+  savedPasero = pasero;
+  savedUsdt = usdt;
+
+  // MATEMÁTICA
+  const unitCostUsdt = usd * (1 + (pasero / 100)); // Ej: 9 * 1.15 = 10.35 USDT
+  const unitCostArs = unitCostUsdt * usdt;         // Ej: 10.35 * 1586 = 16415.10 ARS
+  const totalInvesmentArs = unitCostArs * qty;
+
+  document.getElementById('res-usd-unit').textContent = `${unitCostUsdt.toFixed(2)} USDT`;
+  document.getElementById('res-ars-unit').textContent = `$${Math.round(unitCostArs).toLocaleString('es-AR')}`;
+  document.getElementById('res-ars-total').textContent = `$${Math.round(totalInvesmentArs).toLocaleString('es-AR')}`;
+}
+
+
+// ---------------- RESTO DE LA APP ----------------
 document.querySelectorAll('.filter-chip').forEach(chip => {
   chip.addEventListener('click', (e) => {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -380,11 +426,9 @@ function executeCopy(withPrice) {
 document.getElementById('copy-simple-btn').addEventListener('click', () => executeCopy(false));
 document.getElementById('copy-price-btn').addEventListener('click', () => executeCopy(true));
 
-// 💥 NUEVO: GENERADOR DE PEDIDOS PARA PROVEEDOR 💥
 document.getElementById('copy-order-btn').addEventListener('click', () => {
-  const targetStock = 10; // ← Cuántas unidades querés tener de base (lo podés cambiar a 5 o 20)
+  const targetStock = 10; 
   
-  // Filtramos solo los productos que tengan 2 o menos de stock
   const lowStockItems = stock.filter(i => i.qty <= 2);
   
   if (lowStockItems.length === 0) {
@@ -393,7 +437,7 @@ document.getElementById('copy-order-btn').addEventListener('click', () => {
     return;
   }
 
-  let text = "📦 *PEDIDO DE REPOSICIÓN* 📦\n\nHola, necesito reponer el siguiente stock:\n\n";
+  let text = "📦 *PEDIDO DE REPOSICIÓN* 📦\n\nHola, necesito reponer lo siguiente:\n\n";
   const grouped = {};
 
   lowStockItems.forEach(i => {
@@ -404,7 +448,7 @@ document.getElementById('copy-order-btn').addEventListener('click', () => {
   for (const model in grouped) {
     text += `📌 *${model}*\n`;
     grouped[model].forEach(f => {
-      const toOrder = targetStock - f.qty; // Calcula cuánto falta para llegar a 10
+      const toOrder = targetStock - f.qty; 
       text += `  • ${f.flavor} (x${toOrder} u.)\n`;
     });
     text += "\n";
