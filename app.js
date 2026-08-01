@@ -4,17 +4,30 @@ if ('serviceWorker' in navigator) {
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
 
+// SVG Icons
+const ICON_TRASH = `<svg class="icon-btn danger" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+const ICON_EDIT = `<svg class="icon-btn" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+
 const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
 const copyBtn = document.getElementById('copy-btn');
+const copyModal = document.getElementById('copy-modal');
+const closeCopyModalBtn = document.getElementById('close-copy-modal-btn');
+const copyWithPriceBtn = document.getElementById('copy-with-price-btn');
+const copyWithoutPriceBtn = document.getElementById('copy-without-price-btn');
+
 const fabBtn = document.getElementById('fab-btn');
 const addModal = document.getElementById('add-modal');
 const closeModalBtn = document.getElementById('close-modal-btn');
 const saveBtn = document.getElementById('save-btn');
 const modelInput = document.getElementById('model-input');
+const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
 const toastContainer = document.getElementById('toast-container');
+
+const dashQty = document.getElementById('dash-qty');
+const dashVal = document.getElementById('dash-val');
 
 function saveStock() {
   localStorage.setItem('vapeStock', JSON.stringify(stock));
@@ -29,16 +42,15 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-fabBtn.addEventListener('click', () => { 
-  addModal.classList.remove('hidden'); 
-});
+fabBtn.addEventListener('click', () => { addModal.classList.remove('hidden'); });
+closeModalBtn.addEventListener('click', () => { addModal.classList.add('hidden'); });
 
-closeModalBtn.addEventListener('click', () => { 
-  addModal.classList.add('hidden'); 
-});
+copyBtn.addEventListener('click', () => { copyModal.classList.remove('hidden'); });
+closeCopyModalBtn.addEventListener('click', () => { copyModal.classList.add('hidden'); });
 
 saveBtn.addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
+  const price = parseFloat(priceInput.value) || 0;
   const flavorsRaw = flavorInput.value.trim();
   const baseQty = parseInt(qtyInput.value) || 1;
 
@@ -59,27 +71,22 @@ saveBtn.addEventListener('click', () => {
        parsedQty = parseInt(qtyMatch[1]);
        cleanFlavor = flavorStr.replace(qtyMatch[0], '').trim();
     }
-    
     cleanFlavor = cleanFlavor.replace(/^[-•*]\s*/, '').trim();
 
     if (cleanFlavor) {
       const existing = stock.find(i => i.model === model && i.flavor.toLowerCase() === cleanFlavor.toLowerCase());
       if (existing) {
         existing.qty += parsedQty;
+        if (price > 0) existing.price = price;
       } else {
-        stock.push({ id: Date.now() + Math.random(), model, flavor: cleanFlavor, qty: parsedQty });
+        stock.push({ id: Date.now() + Math.random(), model, flavor: cleanFlavor, qty: parsedQty, price: price });
       }
       addedCount++;
     }
   });
 
   saveStock();
-  
-  if(addedCount === 1) {
-    showToast(`✅ Sabor guardado`);
-  } else if (addedCount > 1) {
-    showToast(`✅ ${addedCount} sabores guardados`);
-  }
+  showToast(`✅ ${addedCount} sabor(es) guardado(s)`);
   
   flavorInput.value = ''; 
   qtyInput.value = '1';
@@ -105,34 +112,34 @@ window.deleteFlavor = function(id) {
 
 window.deleteModel = function(event, modelName) {
   event.stopPropagation(); 
-  
-  if (confirm(`¿Seguro que querés eliminar el modelo "${modelName}" y TODOS sus sabores?`)) {
+  if (confirm(`¿Seguro que querés eliminar el modelo "${modelName}" y todos sus sabores?`)) {
     stock = stock.filter(i => i.model !== modelName);
     saveStock();
     showToast('🗑️ Modelo eliminado');
   }
 };
 
-// ✏️ NUEVA FUNCIÓN: Editar el nombre del modelo
 window.editModel = function(event, oldModelName) {
-  event.stopPropagation(); // Evita que se abra/cierre la lista
+  event.stopPropagation();
+  const currentPrice = stock.find(i => i.model === oldModelName)?.price || 0;
   
   const newModelName = prompt('✏️ Editar nombre del modelo:', oldModelName);
+  if (newModelName === null) return;
   
-  // Si escribió algo y es diferente al nombre viejo
-  if (newModelName && newModelName.trim() !== '' && newModelName.trim() !== oldModelName) {
-    const cleanName = newModelName.trim().toUpperCase();
-    
-    // Le cambiamos el nombre a todos los sabores que pertenecían a este modelo
-    stock.forEach(item => {
-      if (item.model === oldModelName) {
-        item.model = cleanName;
-      }
-    });
-    
-    saveStock();
-    showToast('✅ Nombre actualizado');
-  }
+  const newPriceStr = prompt('💵 Editar precio de venta ($):', currentPrice);
+  const newPrice = parseFloat(newPriceStr) || 0;
+
+  const cleanName = newModelName.trim().toUpperCase() || oldModelName;
+  
+  stock.forEach(item => {
+    if (item.model === oldModelName) {
+      item.model = cleanName;
+      item.price = newPrice;
+    }
+  });
+  
+  saveStock();
+  showToast('✅ Modelo actualizado');
 };
 
 window.toggleModel = function(element) {
@@ -142,32 +149,47 @@ window.toggleModel = function(element) {
   arrow.classList.toggle('collapsed');
 };
 
-copyBtn.addEventListener('click', () => {
+function executeCopy(includePrice) {
   const available = stock.filter(i => i.qty > 0);
-  if (available.length === 0) return showToast('❌ No hay stock para copiar');
+  if (available.length === 0) {
+    copyModal.classList.add('hidden');
+    return showToast('❌ No hay stock para copiar');
+  }
 
   let text = "🔥 *STOCK DISPONIBLE* 🔥\n\n";
   const grouped = {};
 
   available.forEach(i => {
-    if (!grouped[i.model]) grouped[i.model] = [];
-    grouped[i.model].push(`  • ${i.flavor}: ${i.qty} u.`);
+    if (!grouped[i.model]) grouped[i.model] = { price: i.price || 0, items: [] };
+    grouped[i.model].items.push(`  • ${i.flavor}: ${i.qty} u.`);
   });
 
   for (const model in grouped) {
-    text += `📌 *${model}*\n`;
-    grouped[model].forEach(f => text += `${f}\n`);
+    const priceTxt = includePrice && grouped[model].price > 0 ? ` - $${grouped[model].price.toLocaleString('es-AR')}` : '';
+    text += `📌 *${model}*${priceTxt}\n`;
+    grouped[model].items.forEach(f => text += `${f}\n`);
     text += "\n";
   }
 
   navigator.clipboard.writeText(text).then(() => {
+    copyModal.classList.add('hidden');
     showToast('✅ Lista copiada al portapapeles');
   }).catch(() => alert("Error al copiar"));
-});
+}
+
+copyWithPriceBtn.addEventListener('click', () => executeCopy(true));
+copyWithoutPriceBtn.addEventListener('click', () => executeCopy(false));
 
 function render() {
   const query = searchInput.value.toLowerCase();
   const isSearching = query.length > 0;
+
+  // Actualizar Métricas Top Bar
+  const totalQty = stock.reduce((acc, curr) => acc + curr.qty, 0);
+  const totalVal = stock.reduce((acc, curr) => acc + (curr.qty * (curr.price || 0)), 0);
+
+  dashQty.textContent = `${totalQty} u.`;
+  dashVal.textContent = `$ ${totalVal.toLocaleString('es-AR')}`;
 
   const openModels = new Set();
   document.querySelectorAll('.model-card').forEach(card => {
@@ -190,8 +212,8 @@ function render() {
   
   const grouped = {};
   filtered.forEach(item => {
-    if (!grouped[item.model]) grouped[item.model] = [];
-    grouped[item.model].push(item);
+    if (!grouped[item.model]) grouped[item.model] = { price: item.price || 0, items: [] };
+    grouped[item.model].items.push(item);
   });
 
   for (const model in grouped) {
@@ -202,14 +224,15 @@ function render() {
     const collapsedClass = shouldBeOpen ? '' : 'hidden';
     const arrowClass = shouldBeOpen ? '' : 'collapsed';
     const safeModelName = model.replace(/'/g, "\\'"); 
+    const priceDisplay = grouped[model].price > 0 ? `<span class="price-badge">$ ${grouped[model].price.toLocaleString('es-AR')}</span>` : '';
 
-    // ✏️ AGREGADO EL LÁPIZ DE EDITAR AL LADO DEL TACHITO
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="btn-delete" style="padding: 0; font-size: 16px;" onclick="deleteModel(event, '${safeModelName}')">🗑️</button>
-          <button style="padding: 0; font-size: 16px; background: transparent; border: none; cursor: pointer;" onclick="editModel(event, '${safeModelName}')">✏️</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="icon-btn danger" onclick="deleteModel(event, '${safeModelName}')">${ICON_TRASH}</button>
+          <button class="icon-btn" onclick="editModel(event, '${safeModelName}')">${ICON_EDIT}</button>
           <span class="model-title-text">${model}</span>
+          ${priceDisplay}
         </div>
         <span class="arrow ${arrowClass}">▼</span>
       </div>
@@ -218,14 +241,14 @@ function render() {
 
     const flavorsContainer = card.querySelector('.model-flavors');
 
-    grouped[model].forEach(item => {
+    grouped[model].items.forEach(item => {
       const row = document.createElement('div');
       let statusClass = item.qty === 0 ? 'out-of-stock' : '';
       row.className = `flavor-row ${statusClass}`;
       
       row.innerHTML = `
         <div class="flavor-info">
-          <button class="btn-delete" onclick="deleteFlavor(${item.id})">🗑️</button>
+          <button class="icon-btn danger" onclick="deleteFlavor(${item.id})">${ICON_TRASH}</button>
           <span class="flavor-name">${item.flavor}</span>
         </div>
         <div class="controls">
