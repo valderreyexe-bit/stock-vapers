@@ -1,7 +1,8 @@
-const CACHE_NAME = 'vape-stock-v2';
+const CACHE_NAME = 'vape-stock-v3';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (e) => {
+  self.skipWaiting(); // Forza la instalación inmediata
   e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
 });
 
@@ -11,11 +12,10 @@ self.addEventListener('activate', (e) => {
       return Promise.all(keys.map(key => {
         if (key !== CACHE_NAME) return caches.delete(key);
       }));
-    })
+    }).then(() => self.clients.claim()) // Toma control inmediato
   );
 });
 
-// Network First (Siempre busca la versión más nueva si hay internet)
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
