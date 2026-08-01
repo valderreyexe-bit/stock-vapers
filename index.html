@@ -25,7 +25,7 @@
     </div>
   </header>
 
-  <!-- DASHBOARD FINANCIERO REDISEÑADO -->
+  <!-- DASHBOARD FINANCIERO -->
   <div class="dashboard">
     <div class="dash-card">
       <span class="dash-label">Stock Total</span>
@@ -35,8 +35,10 @@
       <span class="dash-label">Valor Venta</span>
       <span class="dash-value accent private-text" id="total-money">$0</span>
     </div>
+    
+    <!-- ARREGLO VISUAL: display flex en columna -->
     <div class="dash-card full" style="flex-direction: row; justify-content: space-between; align-items: center;">
-      <div>
+      <div style="display: flex; flex-direction: column;">
         <span class="dash-label" style="color: var(--warning);">Ganancia Neta (Limpia)</span>
         <span class="dash-value private-text" style="color: var(--warning);" id="total-profit">$0</span>
       </div>
@@ -77,7 +79,6 @@
         <input type="text" id="model-input" placeholder="Ej: Elfbar 5000">
       </div>
       
-      <!-- NUEVOS CAMPOS DE PRECIOS -->
       <div class="form-group row" style="gap: 12px;">
         <div style="flex: 1;">
           <label>Costo c/u ($)</label>
