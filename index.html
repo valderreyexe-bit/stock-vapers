@@ -25,7 +25,6 @@
     </div>
   </header>
 
-  <!-- DASHBOARD FINANCIERO -->
   <div class="dashboard">
     <div class="dash-card">
       <span class="dash-label">Stock Total</span>
@@ -35,16 +34,12 @@
       <span class="dash-label">Valor Venta</span>
       <span class="dash-value accent private-text" id="total-money">$0</span>
     </div>
-    
-    <!-- ARREGLO VISUAL: display flex en columna -->
     <div class="dash-card full" style="flex-direction: row; justify-content: space-between; align-items: center;">
       <div style="display: flex; flex-direction: column;">
         <span class="dash-label" style="color: var(--warning);">Ganancia Neta (Limpia)</span>
         <span class="dash-value private-text" style="color: var(--warning);" id="total-profit">$0</span>
       </div>
-      <button id="btn-toggle-eye" class="btn-icon-header" style="background: rgba(255,255,255,0.05); padding: 10px;">
-        <!-- El ícono se inyecta por JS -->
-      </button>
+      <button id="btn-toggle-eye" class="btn-icon-header" style="background: rgba(255,255,255,0.05); padding: 10px;"></button>
     </div>
   </div>
 
@@ -121,8 +116,13 @@
   <!-- MODAL HISTORIAL DE VENTAS -->
   <div id="history-modal" class="modal hidden">
     <div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;">
-      <div class="modal-header" style="margin-bottom: 12px;">
-        <h3>📜 Historial de Ventas</h3>
+      
+      <!-- ACÁ ESTÁ EL BOTÓN NUEVO -->
+      <div class="modal-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <h3 style="margin: 0;">📜 Historial</h3>
+          <button id="btn-clear-history" style="background: rgba(255, 69, 58, 0.15); color: var(--danger); border: 1px solid rgba(255, 69, 58, 0.3); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;">Vaciar</button>
+        </div>
         <button id="close-history-btn" class="btn-close">✕</button>
       </div>
       
