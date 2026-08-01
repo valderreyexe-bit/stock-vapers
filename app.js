@@ -7,8 +7,6 @@ let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
 let currentFilter = 'all'; 
 
 let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
-
-// CARGA DE VALORES GUARDADOS (Calculadora)
 let savedPasero = localStorage.getItem('vapePasero') || '15';
 let savedUsdt = localStorage.getItem('vapeUsdt') || '1586';
 
@@ -22,14 +20,12 @@ const iconEyeClosed = `<svg width="20" height="20" viewBox="0 0 24 24" fill="non
 const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
 const toastContainer = document.getElementById('toast-container');
-
-// Modales
 const addModal = document.getElementById('add-modal');
 const copyModal = document.getElementById('copy-modal');
 const editModal = document.getElementById('edit-modal');
 const settingsModal = document.getElementById('settings-modal');
 const historyModal = document.getElementById('history-modal');
-const calculatorModal = document.getElementById('calculator-modal'); // NUEVO
+const calculatorModal = document.getElementById('calculator-modal');
 
 const modelInput = document.getElementById('model-input');
 const costInput = document.getElementById('cost-input');
@@ -37,7 +33,6 @@ const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
 
-// EVENTO OJITO
 document.getElementById('btn-toggle-eye').addEventListener('click', () => {
   isEyeOpen = !isEyeOpen;
   localStorage.setItem('vapeEye', isEyeOpen);
@@ -62,16 +57,15 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-// ---------------- CALCULADORA DE IMPORTACIÓN ----------------
+// CALCULADORA
 document.getElementById('btn-calculator').addEventListener('click', () => {
   document.getElementById('calc-pasero').value = savedPasero;
   document.getElementById('calc-usdt').value = savedUsdt;
-  runCalculator(); // Corre la cuenta por si ya había algo
+  runCalculator();
   calculatorModal.classList.remove('hidden');
 });
 document.getElementById('close-calc-btn').addEventListener('click', () => calculatorModal.classList.add('hidden'));
 
-// Escuchamos los cambios en los inputs para calcular en tiempo real
 ['calc-usd', 'calc-pasero', 'calc-usdt', 'calc-qty'].forEach(id => {
   document.getElementById(id).addEventListener('input', runCalculator);
 });
@@ -82,15 +76,13 @@ function runCalculator() {
   const usdt = parseFloat(document.getElementById('calc-usdt').value) || 0;
   const qty = parseInt(document.getElementById('calc-qty').value) || 1;
 
-  // Guardamos las configuraciones para no escribirlas cada vez
   localStorage.setItem('vapePasero', pasero);
   localStorage.setItem('vapeUsdt', usdt);
   savedPasero = pasero;
   savedUsdt = usdt;
 
-  // MATEMÁTICA
-  const unitCostUsdt = usd * (1 + (pasero / 100)); // Ej: 9 * 1.15 = 10.35 USDT
-  const unitCostArs = unitCostUsdt * usdt;         // Ej: 10.35 * 1586 = 16415.10 ARS
+  const unitCostUsdt = usd * (1 + (pasero / 100));
+  const unitCostArs = unitCostUsdt * usdt;
   const totalInvesmentArs = unitCostArs * qty;
 
   document.getElementById('res-usd-unit').textContent = `${unitCostUsdt.toFixed(2)} USDT`;
@@ -98,8 +90,6 @@ function runCalculator() {
   document.getElementById('res-ars-total').textContent = `$${Math.round(totalInvesmentArs).toLocaleString('es-AR')}`;
 }
 
-
-// ---------------- RESTO DE LA APP ----------------
 document.querySelectorAll('.filter-chip').forEach(chip => {
   chip.addEventListener('click', (e) => {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -428,7 +418,6 @@ document.getElementById('copy-price-btn').addEventListener('click', () => execut
 
 document.getElementById('copy-order-btn').addEventListener('click', () => {
   const targetStock = 10; 
-  
   const lowStockItems = stock.filter(i => i.qty <= 2);
   
   if (lowStockItems.length === 0) {
@@ -524,15 +513,27 @@ function render() {
     const collapsedClass = shouldBeOpen ? '' : 'hidden';
     const arrowClass = shouldBeOpen ? '' : 'collapsed';
     const safeModelName = model.replace(/'/g, "\\'"); 
+    
     const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
+    const modelCost = Math.max(...grouped[model].map(i => i.cost || 0));
+    const modelProfit = modelPrice - modelCost;
 
-    const badgePriceStr = (modelPrice > 0 && isEyeOpen) ? `<span class="model-price-badge">$ ${modelPrice.toLocaleString('es-AR')}</span>` : '';
+    // 💥 ACÁ SE INYECTA LA NUEVA ETIQUETA DE GANANCIA POR UNIDAD
+    let badgesHtml = '';
+    if (isEyeOpen && modelPrice > 0) {
+      badgesHtml += `<div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">`;
+      badgesHtml += `<span class="model-price-badge">Venta $${modelPrice.toLocaleString('es-AR')}</span>`;
+      if (modelCost > 0 && modelProfit > 0) {
+        badgesHtml += `<span class="model-profit-badge">Limpio $${modelProfit.toLocaleString('es-AR')}</span>`;
+      }
+      badgesHtml += `</div>`;
+    }
 
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
         <div class="model-title-left">
           <span class="model-title-text">${model}</span>
-          ${badgePriceStr}
+          ${badgesHtml}
         </div>
         <div class="model-title-right">
           <button class="icon-btn" onclick="openEditModal(event, '${safeModelName}')">${iconEdit}</button>
