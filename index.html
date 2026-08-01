@@ -11,13 +11,17 @@
 <body>
   <header class="app-header">
     <h1 class="app-title">💨 StockVape</h1>
-    <button id="btn-open-copy" class="btn-copy">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-      Copiar
-    </button>
+    <div style="display: flex; gap: 10px;">
+      <button id="btn-settings" class="btn-icon-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      <button id="btn-open-copy" class="btn-copy">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        Copiar
+      </button>
+    </div>
   </header>
 
-  <!-- DASHBOARD FINANCIERO -->
   <div class="dashboard">
     <div class="dash-card">
       <span class="dash-label">Total Stock</span>
@@ -29,8 +33,17 @@
     </div>
   </div>
 
-  <div class="search-container">
-    <input type="text" id="search-input" class="search-input" placeholder="🔍 Buscar modelo o sabor...">
+  <div class="sticky-tools">
+    <div class="search-container">
+      <input type="text" id="search-input" class="search-input" placeholder="🔍 Buscar modelo o sabor...">
+    </div>
+    
+    <!-- NUEVOS CHIPS DE FILTRO -->
+    <div class="filter-container">
+      <button class="filter-chip active" data-filter="all">Todos</button>
+      <button class="filter-chip" data-filter="low">⚠️ Poco Stock (≤ 2)</button>
+      <button class="filter-chip" data-filter="out">🚫 Agotados</button>
+    </div>
   </div>
 
   <div id="stock-container" class="stock-list"></div>
@@ -65,6 +78,23 @@
         <input type="number" id="qty-input" value="1" min="1">
       </div>
       <button id="save-btn" class="btn-save">Guardar Sabores</button>
+    </div>
+  </div>
+
+  <!-- MODAL AJUSTES Y BACKUP -->
+  <div id="settings-modal" class="modal hidden action-sheet">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ Ajustes y Respaldo</h3>
+        <button id="close-settings-btn" class="btn-close">✕</button>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Descargá una copia de seguridad de tu stock para no perderlo nunca.</p>
+      <button id="export-btn" class="btn-save" style="margin-bottom: 12px; background: var(--accent);">💾 Descargar Backup</button>
+      
+      <div style="position: relative;">
+        <input type="file" id="import-file" accept=".json" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+        <button class="btn-save btn-secondary">📂 Restaurar Backup</button>
+      </div>
     </div>
   </div>
 
