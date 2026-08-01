@@ -21,14 +21,11 @@ function saveStock() {
   render();
 }
 
-// 🔔 FUNCIÓN DE NOTIFICACIÓN VISUAL
 function showToast(message) {
   const toast = document.createElement('div');
   toast.className = 'toast';
   toast.textContent = message;
   toastContainer.appendChild(toast);
-  
-  // Se borra solo después de 2.5 segundos
   setTimeout(() => toast.remove(), 2500);
 }
 
@@ -40,28 +37,56 @@ closeModalBtn.addEventListener('click', () => {
   addModal.classList.add('hidden'); 
 });
 
-// 🚀 LÓGICA DE GUARDADO Y FEEDBACK
+// 🚀 LÓGICA DE PEGADO MASIVO SÚPER INTELIGENTE
 saveBtn.addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
-  const flavor = flavorInput.value.trim();
-  const qty = parseInt(qtyInput.value) || 0;
+  const flavorsRaw = flavorInput.value.trim();
+  const baseQty = parseInt(qtyInput.value) || 1;
 
-  if (!model || !flavor) return alert('Completá modelo y sabor');
+  if (!model || !flavorsRaw) return alert('Completá modelo y sabores');
 
-  const existing = stock.find(i => i.model === model && i.flavor.toLowerCase() === flavor.toLowerCase());
+  // Separar por Enter o por Coma
+  const flavors = flavorsRaw.split(/[\n,]+/)
+    .map(f => f.trim())
+    // Ignorar líneas vacías o textos como "Sabores dispo:"
+    .filter(f => f.length > 0 && !f.toLowerCase().includes('sabores dispo'));
+  
+  let addedCount = 0;
 
-  if (existing) {
-    existing.qty += qty;
-  } else {
-    stock.push({ id: Date.now(), model, flavor, qty });
-  }
+  flavors.forEach(flavorStr => {
+    let parsedQty = baseQty;
+    let cleanFlavor = flavorStr;
+
+    // Buscar si el texto termina en "= 9u", "- 5", "9 u"
+    const qtyMatch = flavorStr.match(/(?:[-=:]|\s)\s*(\d+)\s*[uU]?\s*$/);
+    if (qtyMatch) {
+       parsedQty = parseInt(qtyMatch[1]);
+       // Borramos esa cantidad del nombre para que quede limpio
+       cleanFlavor = flavorStr.replace(qtyMatch[0], '').trim();
+    }
+
+    // Limpiamos guiones de viñeta al principio si los tiene
+    cleanFlavor = cleanFlavor.replace(/^[-•*]\s*/, '').trim();
+
+    if (cleanFlavor) {
+      const existing = stock.find(i => i.model === model && i.flavor.toLowerCase() === cleanFlavor.toLowerCase());
+      if (existing) {
+        existing.qty += parsedQty;
+      } else {
+        stock.push({ id: Date.now() + Math.random(), model, flavor: cleanFlavor, qty: parsedQty });
+      }
+      addedCount++;
+    }
+  });
 
   saveStock();
   
-  // TE AVISA CON UN CARTEL DESDE ARRIBA QUE SE GUARDÓ
-  showToast(`✅ ${flavor} guardado (${qty} u.)`);
+  if(addedCount === 1) {
+    showToast(`✅ Sabor guardado`);
+  } else if (addedCount > 1) {
+    showToast(`✅ ${addedCount} sabores guardados`);
+  }
   
-  // TE LIMPIA EL CAMPO SABOR PARA QUE SIGAS CARGANDO SIN CERRAR EL MENÚ
   flavorInput.value = ''; 
   qtyInput.value = '1';
   flavorInput.focus();
@@ -73,6 +98,14 @@ window.updateQty = function(id, change) {
     if (item.qty === 0 && change < 0) return; 
     item.qty += change;
     saveStock();
+  }
+};
+
+window.deleteFlavor = function(id) {
+  if (confirm('¿Seguro que querés eliminar este sabor del catálogo?')) {
+    stock = stock.filter(i => i.id !== id);
+    saveStock();
+    showToast('🗑️ Sabor eliminado');
   }
 };
 
@@ -125,7 +158,10 @@ function render() {
       row.className = `flavor-row ${statusClass}`;
       
       row.innerHTML = `
-        <span class="flavor-name">${item.flavor}</span>
+        <div class="flavor-info">
+          <button class="btn-delete" onclick="deleteFlavor(${item.id})">🗑️</button>
+          <span class="flavor-name">${item.flavor}</span>
+        </div>
         <div class="controls">
           <button class="btn-qty btn-minus" onclick="updateQty(${item.id}, -1)">-</button>
           <span class="qty-number">${item.qty}</span>
