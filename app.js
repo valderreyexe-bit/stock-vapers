@@ -103,6 +103,38 @@ window.deleteFlavor = function(id) {
   }
 };
 
+window.deleteModel = function(event, modelName) {
+  event.stopPropagation(); 
+  
+  if (confirm(`¿Seguro que querés eliminar el modelo "${modelName}" y TODOS sus sabores?`)) {
+    stock = stock.filter(i => i.model !== modelName);
+    saveStock();
+    showToast('🗑️ Modelo eliminado');
+  }
+};
+
+// ✏️ NUEVA FUNCIÓN: Editar el nombre del modelo
+window.editModel = function(event, oldModelName) {
+  event.stopPropagation(); // Evita que se abra/cierre la lista
+  
+  const newModelName = prompt('✏️ Editar nombre del modelo:', oldModelName);
+  
+  // Si escribió algo y es diferente al nombre viejo
+  if (newModelName && newModelName.trim() !== '' && newModelName.trim() !== oldModelName) {
+    const cleanName = newModelName.trim().toUpperCase();
+    
+    // Le cambiamos el nombre a todos los sabores que pertenecían a este modelo
+    stock.forEach(item => {
+      if (item.model === oldModelName) {
+        item.model = cleanName;
+      }
+    });
+    
+    saveStock();
+    showToast('✅ Nombre actualizado');
+  }
+};
+
 window.toggleModel = function(element) {
   const flavorsContainer = element.nextElementSibling;
   const arrow = element.querySelector('.arrow');
@@ -137,13 +169,15 @@ function render() {
   const query = searchInput.value.toLowerCase();
   const isSearching = query.length > 0;
 
-  // 🧠 LA MAGIA: Guardamos qué modelos están abiertos antes de borrar la pantalla
   const openModels = new Set();
   document.querySelectorAll('.model-card').forEach(card => {
-    const title = card.querySelector('.model-title span').textContent;
-    const flavors = card.querySelector('.model-flavors');
-    if (!flavors.classList.contains('hidden')) {
-      openModels.add(title);
+    const titleSpan = card.querySelector('.model-title-text');
+    if (titleSpan) {
+        const title = titleSpan.textContent;
+        const flavors = card.querySelector('.model-flavors');
+        if (!flavors.classList.contains('hidden')) {
+          openModels.add(title);
+        }
     }
   });
 
@@ -164,14 +198,19 @@ function render() {
     const card = document.createElement('div');
     card.className = 'model-card';
 
-    // 🧠 LA MAGIA PARTE 2: Si estaba abierto o estás buscando, lo dejamos abierto
     const shouldBeOpen = isSearching || openModels.has(model);
     const collapsedClass = shouldBeOpen ? '' : 'hidden';
     const arrowClass = shouldBeOpen ? '' : 'collapsed';
+    const safeModelName = model.replace(/'/g, "\\'"); 
 
+    // ✏️ AGREGADO EL LÁPIZ DE EDITAR AL LADO DEL TACHITO
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
-        <span>${model}</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="btn-delete" style="padding: 0; font-size: 16px;" onclick="deleteModel(event, '${safeModelName}')">🗑️</button>
+          <button style="padding: 0; font-size: 16px; background: transparent; border: none; cursor: pointer;" onclick="editModel(event, '${safeModelName}')">✏️</button>
+          <span class="model-title-text">${model}</span>
+        </div>
         <span class="arrow ${arrowClass}">▼</span>
       </div>
       <div class="model-flavors ${collapsedClass}"></div>
