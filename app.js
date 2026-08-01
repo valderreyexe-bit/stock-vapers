@@ -112,7 +112,6 @@ document.getElementById('btn-history').addEventListener('click', () => {
 });
 document.getElementById('close-history-btn').addEventListener('click', () => historyModal.classList.add('hidden'));
 
-// BOTÓN PARA VACIAR EL HISTORIAL
 document.getElementById('btn-clear-history').addEventListener('click', () => {
   if (salesHistory.length === 0) return showToast('El historial ya está vacío');
   if (confirm('¿Seguro que querés borrar TODO el historial de ventas? (Tu stock actual quedará intacto)')) {
@@ -380,6 +379,42 @@ function executeCopy(withPrice) {
 
 document.getElementById('copy-simple-btn').addEventListener('click', () => executeCopy(false));
 document.getElementById('copy-price-btn').addEventListener('click', () => executeCopy(true));
+
+// 💥 NUEVO: GENERADOR DE PEDIDOS PARA PROVEEDOR 💥
+document.getElementById('copy-order-btn').addEventListener('click', () => {
+  const targetStock = 10; // ← Cuántas unidades querés tener de base (lo podés cambiar a 5 o 20)
+  
+  // Filtramos solo los productos que tengan 2 o menos de stock
+  const lowStockItems = stock.filter(i => i.qty <= 2);
+  
+  if (lowStockItems.length === 0) {
+    showToast('✅ ¡Tenés buen stock de todo!');
+    copyModal.classList.add('hidden');
+    return;
+  }
+
+  let text = "📦 *PEDIDO DE REPOSICIÓN* 📦\n\nHola, necesito reponer el siguiente stock:\n\n";
+  const grouped = {};
+
+  lowStockItems.forEach(i => {
+    if (!grouped[i.model]) grouped[i.model] = [];
+    grouped[i.model].push(i);
+  });
+
+  for (const model in grouped) {
+    text += `📌 *${model}*\n`;
+    grouped[model].forEach(f => {
+      const toOrder = targetStock - f.qty; // Calcula cuánto falta para llegar a 10
+      text += `  • ${f.flavor} (x${toOrder} u.)\n`;
+    });
+    text += "\n";
+  }
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('✅ Pedido copiado (¡Pegalo en WhatsApp!)');
+    copyModal.classList.add('hidden');
+  }).catch(() => alert("Error al copiar el pedido"));
+});
 
 // ---------------- RENDER PRINCIPAL ----------------
 function render() {
