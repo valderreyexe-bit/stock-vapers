@@ -12,6 +12,10 @@
   <header class="app-header">
     <h1 class="app-title">💨 StockVape</h1>
     <div style="display: flex; gap: 10px;">
+      <!-- Botón de Historial (NUEVO) -->
+      <button id="btn-history" class="btn-icon-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      </button>
       <button id="btn-settings" class="btn-icon-header">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </button>
@@ -37,8 +41,6 @@
     <div class="search-container">
       <input type="text" id="search-input" class="search-input" placeholder="🔍 Buscar modelo o sabor...">
     </div>
-    
-    <!-- NUEVOS CHIPS DE FILTRO -->
     <div class="filter-container">
       <button class="filter-chip active" data-filter="all">Todos</button>
       <button class="filter-chip" data-filter="low">⚠️ Poco Stock (≤ 2)</button>
@@ -90,10 +92,42 @@
       </div>
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Descargá una copia de seguridad de tu stock para no perderlo nunca.</p>
       <button id="export-btn" class="btn-save" style="margin-bottom: 12px; background: var(--accent);">💾 Descargar Backup</button>
-      
       <div style="position: relative;">
         <input type="file" id="import-file" accept=".json" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
         <button class="btn-save btn-secondary">📂 Restaurar Backup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL HISTORIAL DE VENTAS (NUEVO) -->
+  <div id="history-modal" class="modal hidden">
+    <div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="margin-bottom: 12px;">
+        <h3>📜 Historial de Ventas</h3>
+        <button id="close-history-btn" class="btn-close">✕</button>
+      </div>
+      
+      <!-- Pestañas de Hoy / Todo -->
+      <div class="history-tabs">
+        <button class="history-tab active" id="tab-today">Hoy</button>
+        <button class="history-tab" id="tab-all">Todo</button>
+      </div>
+
+      <!-- Resumen del periodo -->
+      <div class="history-summary">
+        <div class="history-stat">
+          <span class="history-stat-label">Unidades vendidas</span>
+          <span class="history-stat-value" id="history-qty">0</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-label">Ingresos</span>
+          <span class="history-stat-value text-success" id="history-money">$0</span>
+        </div>
+      </div>
+
+      <!-- Lista de ventas -->
+      <div id="history-list" class="history-list" style="overflow-y: auto; flex: 1;">
+        <!-- Se llena con JS -->
       </div>
     </div>
   </div>
