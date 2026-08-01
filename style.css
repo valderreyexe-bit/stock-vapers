@@ -19,7 +19,6 @@ body { background: var(--bg); color: var(--text); user-select: none; }
 .btn-copy { background: rgba(10, 132, 255, 0.15); color: var(--accent); border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s;}
 .btn-copy:active { opacity: 0.7; transform: scale(0.95); }
 
-/* Dashboard Rediseñado (Efecto Widget iOS) */
 .dashboard { display: flex; gap: 12px; padding: 20px 20px 0; }
 .dash-card { flex: 1; background: linear-gradient(145deg, #1c1c1e 0%, #28282b 100%); padding: 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 .dash-label { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
@@ -34,7 +33,6 @@ body { background: var(--bg); color: var(--text); user-select: none; }
 .stock-list { padding: 0 20px 100px; }
 .model-card { background: var(--surface); border-radius: 20px; margin-bottom: 20px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3);}
 
-/* Título de Modelo Rediseñado */
 .model-title { padding: 16px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; border-bottom: 0.5px solid var(--border); gap: 12px;}
 .model-title:active { background: rgba(255,255,255,0.06); }
 .model-title-left { display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -63,7 +61,6 @@ body { background: var(--bg); color: var(--text); user-select: none; }
 .badge-danger { background: rgba(255, 69, 58, 0.15); color: var(--danger); border: 1px solid rgba(255, 69, 58, 0.3); }
 .badge-warning { background: rgba(255, 159, 10, 0.15); color: var(--warning); border: 1px solid rgba(255, 159, 10, 0.3); }
 
-/* Stepper estilo Píldora iOS (Rediseño total) */
 .controls { display: flex; align-items: center; background: var(--surface-light); border-radius: 20px; padding: 3px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); }
 .btn-qty { width: 34px; height: 34px; border: none; background: transparent; color: var(--text); font-size: 20px; font-weight: 400; cursor: pointer; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: 0.1s; }
 .btn-qty:active { background: rgba(255,255,255,0.15); }
@@ -71,11 +68,9 @@ body { background: var(--bg); color: var(--text); user-select: none; }
 
 .out-of-stock .flavor-name { opacity: 0.4; }
 
-/* Botón flotante */
 .fab { position: fixed; bottom: 30px; right: 20px; width: 64px; height: 64px; background: var(--accent); color: white; border: none; border-radius: 32px; display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 24px rgba(10,132,255,0.4); cursor: pointer; z-index: 90; transition: transform 0.2s;}
 .fab:active { transform: scale(0.92); }
 
-/* Modales */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: flex-start; padding-top: 10vh; z-index: 100; transition: opacity 0.2s; }
 .action-sheet { align-items: flex-end; padding-top: 0; }
 .action-sheet .modal-content { border-radius: 24px 24px 0 0; width: 100%; max-width: 100%; margin-bottom: 0; padding-bottom: 40px; }
