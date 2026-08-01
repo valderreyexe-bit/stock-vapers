@@ -4,30 +4,27 @@ if ('serviceWorker' in navigator) {
 
 let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
 
-// SVG Icons
-const ICON_TRASH = `<svg class="icon-btn danger" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
-const ICON_EDIT = `<svg class="icon-btn" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+// Íconos Vectoriales Perfectos
+const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
+const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+const iconChevron = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+// Ícono de eliminar sabor (Círculo rojo con menos)
+const iconDeleteFlavor = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
 
 const stockContainer = document.getElementById('stock-container');
 const searchInput = document.getElementById('search-input');
-const copyBtn = document.getElementById('copy-btn');
-const copyModal = document.getElementById('copy-modal');
-const closeCopyModalBtn = document.getElementById('close-copy-modal-btn');
-const copyWithPriceBtn = document.getElementById('copy-with-price-btn');
-const copyWithoutPriceBtn = document.getElementById('copy-without-price-btn');
+const toastContainer = document.getElementById('toast-container');
 
-const fabBtn = document.getElementById('fab-btn');
+// Modales
 const addModal = document.getElementById('add-modal');
-const closeModalBtn = document.getElementById('close-modal-btn');
-const saveBtn = document.getElementById('save-btn');
+const copyModal = document.getElementById('copy-modal');
+const editModal = document.getElementById('edit-modal');
+
+// Inputs Carga
 const modelInput = document.getElementById('model-input');
 const priceInput = document.getElementById('price-input');
 const flavorInput = document.getElementById('flavor-input');
 const qtyInput = document.getElementById('qty-input');
-const toastContainer = document.getElementById('toast-container');
-
-const dashQty = document.getElementById('dash-qty');
-const dashVal = document.getElementById('dash-val');
 
 function saveStock() {
   localStorage.setItem('vapeStock', JSON.stringify(stock));
@@ -42,24 +39,27 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-fabBtn.addEventListener('click', () => { addModal.classList.remove('hidden'); });
-closeModalBtn.addEventListener('click', () => { addModal.classList.add('hidden'); });
+// ---------------- LÓGICA DE MODALES ----------------
+document.getElementById('fab-btn').addEventListener('click', () => addModal.classList.remove('hidden'));
+document.getElementById('close-modal-btn').addEventListener('click', () => addModal.classList.add('hidden'));
 
-copyBtn.addEventListener('click', () => { copyModal.classList.remove('hidden'); });
-closeCopyModalBtn.addEventListener('click', () => { copyModal.classList.add('hidden'); });
+document.getElementById('btn-open-copy').addEventListener('click', () => {
+  if (stock.filter(i => i.qty > 0).length === 0) return showToast('❌ No hay stock');
+  copyModal.classList.remove('hidden');
+});
+document.getElementById('close-copy-btn').addEventListener('click', () => copyModal.classList.add('hidden'));
+document.getElementById('close-edit-btn').addEventListener('click', () => editModal.classList.add('hidden'));
 
-saveBtn.addEventListener('click', () => {
+// ---------------- GUARDAR NUEVO ----------------
+document.getElementById('save-btn').addEventListener('click', () => {
   const model = modelInput.value.trim().toUpperCase();
-  const price = parseFloat(priceInput.value) || 0;
+  const price = parseInt(priceInput.value) || 0;
   const flavorsRaw = flavorInput.value.trim();
   const baseQty = parseInt(qtyInput.value) || 1;
 
   if (!model || !flavorsRaw) return alert('Completá modelo y sabores');
 
-  const flavors = flavorsRaw.split(/[\n,]+/)
-    .map(f => f.trim())
-    .filter(f => f.length > 0 && !f.toLowerCase().includes('sabores dispo'));
-  
+  const flavors = flavorsRaw.split(/[\n,]+/).map(f => f.trim()).filter(f => f.length > 0 && !f.toLowerCase().includes('sabores dispo'));
   let addedCount = 0;
 
   flavors.forEach(flavorStr => {
@@ -77,22 +77,52 @@ saveBtn.addEventListener('click', () => {
       const existing = stock.find(i => i.model === model && i.flavor.toLowerCase() === cleanFlavor.toLowerCase());
       if (existing) {
         existing.qty += parsedQty;
-        if (price > 0) existing.price = price;
+        if(price > 0) existing.price = price; // Actualiza precio
       } else {
-        stock.push({ id: Date.now() + Math.random(), model, flavor: cleanFlavor, qty: parsedQty, price: price });
+        stock.push({ id: Date.now() + Math.random(), model, price, flavor: cleanFlavor, qty: parsedQty });
       }
       addedCount++;
     }
   });
 
   saveStock();
-  showToast(`✅ ${addedCount} sabor(es) guardado(s)`);
-  
+  showToast(`✅ ${addedCount} guardados`);
   flavorInput.value = ''; 
   qtyInput.value = '1';
   flavorInput.focus();
 });
 
+// ---------------- EDICIÓN ----------------
+window.openEditModal = function(event, oldName) {
+  event.stopPropagation();
+  const currentItems = stock.filter(i => i.model === oldName);
+  const currentPrice = currentItems.length > 0 ? (currentItems[0].price || 0) : 0;
+  
+  document.getElementById('edit-old-name').value = oldName;
+  document.getElementById('edit-model-name').value = oldName;
+  document.getElementById('edit-model-price').value = currentPrice;
+  editModal.classList.remove('hidden');
+};
+
+document.getElementById('save-edit-btn').addEventListener('click', () => {
+  const oldName = document.getElementById('edit-old-name').value;
+  const newName = document.getElementById('edit-model-name').value.trim().toUpperCase();
+  const newPrice = parseInt(document.getElementById('edit-model-price').value) || 0;
+
+  if(newName) {
+    stock.forEach(item => {
+      if (item.model === oldName) {
+        item.model = newName;
+        item.price = newPrice;
+      }
+    });
+    saveStock();
+    showToast('✅ Modelo actualizado');
+    editModal.classList.add('hidden');
+  }
+});
+
+// ---------------- ACCIONES ----------------
 window.updateQty = function(id, change) {
   const item = stock.find(i => i.id === id);
   if (item) {
@@ -103,7 +133,7 @@ window.updateQty = function(id, change) {
 };
 
 window.deleteFlavor = function(id) {
-  if (confirm('¿Seguro que querés eliminar este sabor del catálogo?')) {
+  if (confirm('¿Seguro que querés eliminar este sabor?')) {
     stock = stock.filter(i => i.id !== id);
     saveStock();
     showToast('🗑️ Sabor eliminado');
@@ -112,34 +142,11 @@ window.deleteFlavor = function(id) {
 
 window.deleteModel = function(event, modelName) {
   event.stopPropagation(); 
-  if (confirm(`¿Seguro que querés eliminar el modelo "${modelName}" y todos sus sabores?`)) {
+  if (confirm(`¿Seguro que querés eliminar el modelo "${modelName}" entero?`)) {
     stock = stock.filter(i => i.model !== modelName);
     saveStock();
     showToast('🗑️ Modelo eliminado');
   }
-};
-
-window.editModel = function(event, oldModelName) {
-  event.stopPropagation();
-  const currentPrice = stock.find(i => i.model === oldModelName)?.price || 0;
-  
-  const newModelName = prompt('✏️ Editar nombre del modelo:', oldModelName);
-  if (newModelName === null) return;
-  
-  const newPriceStr = prompt('💵 Editar precio de venta ($):', currentPrice);
-  const newPrice = parseFloat(newPriceStr) || 0;
-
-  const cleanName = newModelName.trim().toUpperCase() || oldModelName;
-  
-  stock.forEach(item => {
-    if (item.model === oldModelName) {
-      item.model = cleanName;
-      item.price = newPrice;
-    }
-  });
-  
-  saveStock();
-  showToast('✅ Modelo actualizado');
 };
 
 window.toggleModel = function(element) {
@@ -149,47 +156,51 @@ window.toggleModel = function(element) {
   arrow.classList.toggle('collapsed');
 };
 
-function executeCopy(includePrice) {
+// ---------------- COPIAR A WHATSAPP ----------------
+function executeCopy(withPrice) {
   const available = stock.filter(i => i.qty > 0);
-  if (available.length === 0) {
-    copyModal.classList.add('hidden');
-    return showToast('❌ No hay stock para copiar');
-  }
-
   let text = "🔥 *STOCK DISPONIBLE* 🔥\n\n";
   const grouped = {};
 
   available.forEach(i => {
-    if (!grouped[i.model]) grouped[i.model] = { price: i.price || 0, items: [] };
-    grouped[i.model].items.push(`  • ${i.flavor}: ${i.qty} u.`);
+    if (!grouped[i.model]) grouped[i.model] = [];
+    grouped[i.model].push(i);
   });
 
   for (const model in grouped) {
-    const priceTxt = includePrice && grouped[model].price > 0 ? ` - $${grouped[model].price.toLocaleString('es-AR')}` : '';
-    text += `📌 *${model}*${priceTxt}\n`;
-    grouped[model].items.forEach(f => text += `${f}\n`);
+    const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
+    const priceStr = (withPrice && modelPrice > 0) ? ` ($${modelPrice.toLocaleString('es-AR')})` : '';
+    
+    text += `📌 *${model}*${priceStr}\n`;
+    grouped[model].forEach(f => text += `  • ${f.flavor}: ${f.qty} u.\n`);
     text += "\n";
   }
 
   navigator.clipboard.writeText(text).then(() => {
+    showToast('✅ Copiado al portapapeles');
     copyModal.classList.add('hidden');
-    showToast('✅ Lista copiada al portapapeles');
   }).catch(() => alert("Error al copiar"));
 }
 
-copyWithPriceBtn.addEventListener('click', () => executeCopy(true));
-copyWithoutPriceBtn.addEventListener('click', () => executeCopy(false));
+document.getElementById('copy-simple-btn').addEventListener('click', () => executeCopy(false));
+document.getElementById('copy-price-btn').addEventListener('click', () => executeCopy(true));
 
+// ---------------- RENDER PRINCIPAL ----------------
 function render() {
   const query = searchInput.value.toLowerCase();
   const isSearching = query.length > 0;
 
-  // Actualizar Métricas Top Bar
-  const totalQty = stock.reduce((acc, curr) => acc + curr.qty, 0);
-  const totalVal = stock.reduce((acc, curr) => acc + (curr.qty * (curr.price || 0)), 0);
-
-  dashQty.textContent = `${totalQty} u.`;
-  dashVal.textContent = `$ ${totalVal.toLocaleString('es-AR')}`;
+  // Actualizar Dashboard
+  let totalQty = 0;
+  let totalMoney = 0;
+  stock.forEach(i => {
+    if (i.qty > 0) {
+      totalQty += i.qty;
+      totalMoney += (i.qty * (i.price || 0));
+    }
+  });
+  document.getElementById('total-qty').textContent = totalQty + ' u.';
+  document.getElementById('total-money').textContent = '$' + totalMoney.toLocaleString('es-AR');
 
   const openModels = new Set();
   document.querySelectorAll('.model-card').forEach(card => {
@@ -197,23 +208,17 @@ function render() {
     if (titleSpan) {
         const title = titleSpan.textContent;
         const flavors = card.querySelector('.model-flavors');
-        if (!flavors.classList.contains('hidden')) {
-          openModels.add(title);
-        }
+        if (!flavors.classList.contains('hidden')) openModels.add(title);
     }
   });
 
   stockContainer.innerHTML = '';
 
-  const filtered = stock.filter(i => 
-    i.model.toLowerCase().includes(query) || 
-    i.flavor.toLowerCase().includes(query)
-  );
-  
+  const filtered = stock.filter(i => i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query));
   const grouped = {};
   filtered.forEach(item => {
-    if (!grouped[item.model]) grouped[item.model] = { price: item.price || 0, items: [] };
-    grouped[item.model].items.push(item);
+    if (!grouped[item.model]) grouped[item.model] = [];
+    grouped[item.model].push(item);
   });
 
   for (const model in grouped) {
@@ -224,37 +229,47 @@ function render() {
     const collapsedClass = shouldBeOpen ? '' : 'hidden';
     const arrowClass = shouldBeOpen ? '' : 'collapsed';
     const safeModelName = model.replace(/'/g, "\\'"); 
-    const priceDisplay = grouped[model].price > 0 ? `<span class="price-badge">$ ${grouped[model].price.toLocaleString('es-AR')}</span>` : '';
+    const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
 
+    // ESTRUCTURA DEL TÍTULO (Limpia)
     card.innerHTML = `
       <div class="model-title" onclick="toggleModel(this)">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="icon-btn danger" onclick="deleteModel(event, '${safeModelName}')">${ICON_TRASH}</button>
-          <button class="icon-btn" onclick="editModel(event, '${safeModelName}')">${ICON_EDIT}</button>
+        <div class="model-title-left">
           <span class="model-title-text">${model}</span>
-          ${priceDisplay}
+          ${modelPrice > 0 ? `<span class="model-price-badge">$ ${modelPrice.toLocaleString('es-AR')}</span>` : ''}
         </div>
-        <span class="arrow ${arrowClass}">▼</span>
+        <div class="model-title-right">
+          <button class="icon-btn" onclick="openEditModal(event, '${safeModelName}')">${iconEdit}</button>
+          <button class="icon-btn" onclick="deleteModel(event, '${safeModelName}')">${iconTrash}</button>
+          ${iconChevron}
+        </div>
       </div>
       <div class="model-flavors ${collapsedClass}"></div>
     `;
 
     const flavorsContainer = card.querySelector('.model-flavors');
 
-    grouped[model].items.forEach(item => {
+    grouped[model].forEach(item => {
       const row = document.createElement('div');
-      let statusClass = item.qty === 0 ? 'out-of-stock' : '';
-      row.className = `flavor-row ${statusClass}`;
+      row.className = `flavor-row ${item.qty === 0 ? 'out-of-stock' : ''}`;
       
+      let badgeHtml = '';
+      if (item.qty === 0) badgeHtml = '<span class="badge badge-danger">Agotado</span>';
+      else if (item.qty <= 2) badgeHtml = '<span class="badge badge-warning">Quedan ' + item.qty + '</span>';
+
+      // ESTRUCTURA DEL SABOR (Ícono iOS y Stepper de Píldora)
       row.innerHTML = `
-        <div class="flavor-info">
-          <button class="icon-btn danger" onclick="deleteFlavor(${item.id})">${ICON_TRASH}</button>
-          <span class="flavor-name">${item.flavor}</span>
+        <div class="flavor-header">
+          <button class="icon-btn-small" onclick="deleteFlavor(${item.id})">${iconDeleteFlavor}</button>
+          <div class="flavor-info">
+            <span class="flavor-name">${item.flavor}</span>
+            ${badgeHtml}
+          </div>
         </div>
         <div class="controls">
-          <button class="btn-qty btn-minus" onclick="updateQty(${item.id}, -1)">-</button>
+          <button class="btn-qty" onclick="updateQty(${item.id}, -1)">-</button>
           <span class="qty-number">${item.qty}</span>
-          <button class="btn-qty btn-plus" onclick="updateQty(${item.id}, 1)">+</button>
+          <button class="btn-qty" onclick="updateQty(${item.id}, 1)">+</button>
         </div>
       `;
       flavorsContainer.appendChild(row);
