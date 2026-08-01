@@ -5,40 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <title>Stock Vapers</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#121214">
+  <meta name="theme-color" content="#000000">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3233/3233967.png">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>💨 Stock Vapers</h1>
-      <button id="copy-btn" class="btn btn-whatsapp">📋 Copiar Lista</button>
-    </header>
+  <!-- Header Minimalista -->
+  <header class="app-header">
+    <h1 class="app-title">💨 StockVape</h1>
+    <button id="copy-btn" class="btn-copy">📋 Copiar Lista</button>
+  </header>
 
-    <input type="text" id="search-input" class="search-bar" placeholder="🔍 Buscar modelo o sabor...">
-
-    <div id="stock-container"></div>
-
-    <button id="fab-btn" class="fab">➕</button>
+  <!-- Buscador -->
+  <div class="search-container">
+    <input type="text" id="search-input" class="search-input" placeholder="🔍 Buscar modelo o sabor...">
   </div>
 
-  <!-- Modal para agregar nueva mercadería -->
+  <!-- Lista de Stock -->
+  <div id="stock-container" class="stock-list"></div>
+
+  <!-- Botón Flotante Redondo Clásico -->
+  <button id="fab-btn" class="fab">+</button>
+
+  <!-- Contenedor de Notificaciones (Toasts) -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Modal Carga Rápida (Pegado arriba) -->
   <div id="add-modal" class="modal hidden">
     <div class="modal-content">
-      <h3>📦 Ingreso Rápido</h3>
-      <div class="form-group">
-        <input type="text" id="model-input" placeholder="Modelo (ej: Elfbar 5000)">
-        <input type="text" id="flavor-input" placeholder="Sabor (ej: Menta)">
-        <div style="display:flex; gap:10px; align-items:center;">
-            <label style="color:#e1e1e6;">Cantidad:</label>
-            <input type="number" id="qty-input" value="1" min="1" style="width: 80px;">
-        </div>
-        <div style="display:flex; gap:10px; margin-top: 20px;">
-            <button id="cancel-btn" class="btn btn-red" style="flex:1;">Cancelar</button>
-            <button id="save-btn" class="btn btn-green" style="flex:1;">Guardar</button>
-        </div>
+      <div class="modal-header">
+        <h3>📦 Ingresar Stock</h3>
+        <button id="close-modal-btn" class="btn-close">✕</button>
       </div>
+      
+      <div class="form-group">
+        <label>Modelo / Marca</label>
+        <input type="text" id="model-input" placeholder="Ej: Elfbar 5000">
+      </div>
+      
+      <div class="form-group">
+        <label>Sabor a cargar</label>
+        <input type="text" id="flavor-input" placeholder="Ej: Menta Fresca">
+      </div>
+      
+      <div class="form-group row">
+        <label>Cantidad:</label>
+        <input type="number" id="qty-input" value="1" min="1">
+      </div>
+      
+      <button id="save-btn" class="btn-save">Agregar Sabor</button>
     </div>
   </div>
 
