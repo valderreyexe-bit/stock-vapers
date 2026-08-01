@@ -116,8 +116,6 @@
   <!-- MODAL HISTORIAL DE VENTAS -->
   <div id="history-modal" class="modal hidden">
     <div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;">
-      
-      <!-- ACÁ ESTÁ EL BOTÓN NUEVO -->
       <div class="modal-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 12px;">
           <h3 style="margin: 0;">📜 Historial</h3>
@@ -150,7 +148,7 @@
     </div>
   </div>
 
-  <!-- ACTION SHEET: COPIAR -->
+  <!-- ACTION SHEET: COPIAR (ACÁ ESTÁ EL BOTÓN DE PEDIDO) -->
   <div id="copy-modal" class="modal hidden action-sheet">
     <div class="modal-content">
       <div class="modal-header">
@@ -158,7 +156,11 @@
         <button id="close-copy-btn" class="btn-close">✕</button>
       </div>
       <button id="copy-simple-btn" class="btn-save btn-secondary" style="margin-bottom: 12px;">Solo Stock (Redes Sociales)</button>
-      <button id="copy-price-btn" class="btn-save">Stock con Precios de Venta</button>
+      <button id="copy-price-btn" class="btn-save" style="margin-bottom: 16px;">Stock con Precios de Venta</button>
+      
+      <hr style="border: 0; border-top: 1px solid var(--border); margin: 16px 0;">
+      
+      <button id="copy-order-btn" class="btn-save" style="background: var(--warning); color: #000; box-shadow: 0 4px 12px rgba(255,159,10,0.3);">📦 Generar Pedido de Reposición</button>
     </div>
   </div>
 
