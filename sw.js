@@ -1,6 +1,6 @@
 // Subí este número cada vez que cambies archivos, así el celular baja la versión nueva.
-const CACHE_NAME = 'vape-stock-v4';
-const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
+const CACHE_NAME = 'vape-stock-v5';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
