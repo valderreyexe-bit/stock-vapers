@@ -1,17 +1,24 @@
 {
-  "name": "Stock Vapers App",
+  "name": "StockVape",
   "short_name": "StockVape",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#121214",
-  "theme_color": "#8257e5",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3233/3233967.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3233/3233967.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
