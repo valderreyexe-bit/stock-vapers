@@ -8,7 +8,290 @@
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="stylesheet" href="style.css">
+  <style>
+:root {
+  --bg: #000000;
+  --surface: #1C1C1E;
+  --surface-light: #2C2C2E;
+  --text: #FFFFFF;
+  --text-muted: #8E8E93;
+  --accent: #0A84FF;
+  --success: #32D74B;
+  --danger: #FF453A;
+  --warning: #FF9F0A;
+  --reserve: #BF5AF2;
+  --border: rgba(255,255,255,0.08);
+  --header-h: 58px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+html { background: #0a0a0c; overflow-x: hidden; }
+html.modal-open { overflow: hidden; }
+body { background: var(--bg); color: var(--text); user-select: none; -webkit-user-select: none; max-width: 500px; margin: 0 auto; min-height: 100vh; position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.6); }
+input, textarea { user-select: text; -webkit-user-select: text; }
+button { font-family: inherit; }
+.hidden { display: none !important; }
+
+/* ---------- Encabezado ---------- */
+.app-header { padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); z-index: 20; border-bottom: 0.5px solid var(--border); }
+.header-actions { display: flex; gap: 6px; align-items: center; }
+.app-title { font-size: clamp(18px, 5vw, 22px); font-weight: 700; letter-spacing: -0.5px; margin: 0; white-space: nowrap; }
+.btn-copy { background: rgba(10,132,255,0.15); color: var(--accent); border: none; padding: 8px 14px; border-radius: 20px; font-weight: 600; font-size: clamp(12px, 3.5vw, 14px); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+.btn-copy:active { opacity: 0.7; transform: scale(0.95); }
+.btn-icon-header { position: relative; background: transparent; border: none; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; cursor: pointer; }
+.btn-icon-header:active { background: rgba(255,255,255,0.1); color: white; }
+.count-dot { position: absolute; top: -2px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--reserve); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.count-dot.dot-warning { background: var(--warning); min-width: 9px; width: 9px; height: 9px; padding: 0; top: 3px; right: 3px; }
+
+/* ---------- Resumen ---------- */
+.dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 20px 0; }
+.dash-card { min-width: 0; background: linear-gradient(145deg, #1c1c1e 0%, #28282b 100%); padding: 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.dash-card.full { grid-column: span 2; }
+.dash-card:not(.full) { justify-content: flex-start; }
+.dash-row { flex-direction: row; justify-content: space-between; align-items: center; }
+.dash-col { display: flex; flex-direction: column; min-width: 0; }
+.dash-label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.dash-value { font-size: clamp(18px, 6vw, 24px); font-weight: 700; color: white; letter-spacing: -0.5px; word-break: break-word; line-height: 1.1; }
+.dash-value.accent { color: var(--success); }
+.dash-sub { font-size: 11px; font-weight: 600; color: var(--reserve); margin-top: 4px; }
+.dash-sub:empty { display: none; }
+.warning { color: var(--warning) !important; }
+.success { color: var(--success) !important; }
+.btn-eye { background: rgba(255,255,255,0.05); padding: 10px; }
+
+/* ---------- Búsqueda y filtros ---------- */
+.sticky-tools { position: sticky; top: var(--header-h); background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 9; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.search-container { padding: 14px 20px 12px; }
+.search-input { width: 100%; background: var(--surface); color: white; border: 1px solid transparent; padding: 12px 16px; border-radius: 12px; font-size: 16px; outline: none; transition: border 0.2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+.search-input:focus { border-color: rgba(10,132,255,0.5); }
+.search-input::placeholder { color: var(--text-muted); }
+.filter-container { display: flex; gap: 8px; padding: 0 20px; flex-wrap: wrap; }
+.filter-chip { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); padding: 8px 14px; border-radius: 20px; font-size: clamp(11px, 3vw, 13px); font-weight: 600; cursor: pointer; transition: 0.2s; }
+.filter-chip.active { background: rgba(10,132,255,0.15); color: var(--accent); border-color: rgba(10,132,255,0.4); }
+.list-hint { padding: 12px 20px; font-size: 12px; color: var(--text-muted); text-align: center; }
+.list-hint b { color: var(--accent); }
+
+/* ---------- Lista de stock ---------- */
+.stock-list { padding: 0 20px 110px; }
+body.has-cart .stock-list { padding-bottom: 120px; }
+.empty-state { text-align: center; color: var(--text-muted); font-size: 14px; line-height: 1.5; padding: 40px 10px; }
+.model-card { background: var(--surface); border-radius: 20px; margin-bottom: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.model-title { padding: 14px 16px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; border-bottom: 0.5px solid var(--border); gap: 10px; }
+.model-title:active { background: rgba(255,255,255,0.06); }
+.model-title-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.model-title-text { font-size: clamp(13px, 4vw, 15px); font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+.model-badges { display: flex; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+.model-badge { padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; width: fit-content; }
+.model-badge.units { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+.model-badge.price { background: rgba(10,132,255,0.15); color: var(--accent); }
+.model-badge.profit { background: rgba(255,159,10,0.15); color: var(--warning); }
+.model-title-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.icon-btn { background: transparent; border: none; color: var(--text-muted); padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 12px; transition: 0.2s; }
+.icon-btn:active { background: rgba(255,255,255,0.1); color: white; }
+.arrow { transition: transform 0.3s ease; color: var(--text-muted); margin-left: 2px; }
+.arrow.collapsed { transform: rotate(-90deg); }
+
+.flavor-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px 6px 4px; border-bottom: 0.5px solid var(--border); gap: 10px; }
+.flavor-row:last-child { border-bottom: none; }
+.flavor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; background: transparent; border: none; color: inherit; text-align: left; padding: 8px 12px; border-radius: 12px; cursor: pointer; }
+.flavor-main:active { background: rgba(255,255,255,0.06); }
+.flavor-name { font-size: clamp(14px, 4vw, 16px); font-weight: 500; overflow-wrap: anywhere; }
+.flavor-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.stock-pill { font-size: 12px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.stock-pill.low { color: var(--warning); }
+.out-of-stock .flavor-name { opacity: 0.4; }
+.badge { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; width: fit-content; }
+.badge-danger { background: rgba(255,69,58,0.15); color: var(--danger); border: 1px solid rgba(255,69,58,0.3); }
+.badge-warning { background: rgba(255,159,10,0.15); color: var(--warning); border: 1px solid rgba(255,159,10,0.3); }
+.badge-reserve { background: rgba(191,90,242,0.15); color: var(--reserve); border: 1px solid rgba(191,90,242,0.35); }
+
+.controls { display: flex; align-items: center; background: var(--surface-light); border-radius: 20px; padding: 2px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); flex-shrink: 0; }
+.controls.in-cart { background: rgba(10,132,255,0.2); box-shadow: inset 0 0 0 1px rgba(10,132,255,0.5); }
+.controls.in-cart .qty-number { color: var(--accent); }
+.btn-qty { width: 36px; height: 36px; border: none; background: transparent; color: var(--text); font-size: 20px; font-weight: 400; cursor: pointer; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: 0.1s; }
+.btn-qty:active { background: rgba(255,255,255,0.15); }
+.qty-number { font-size: 15px; font-weight: 700; min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; }
+.btn-add { width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(10,132,255,0.18); color: var(--accent); font-size: 22px; font-weight: 500; cursor: pointer; flex-shrink: 0; display: flex; justify-content: center; align-items: center; transition: 0.1s; }
+.btn-add:active { background: var(--accent); color: white; transform: scale(0.92); }
+.btn-add:disabled { background: var(--surface-light); color: var(--text-muted); opacity: 0.4; }
+
+/* ---------- FAB y barra de venta ---------- */
+.fab { position: fixed; bottom: calc(22px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); height: 48px; padding: 0 20px; background: var(--accent); color: white; border: none; border-radius: 24px; font-size: 15px; font-weight: 700; white-space: nowrap; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 8px 24px rgba(10,132,255,0.4); cursor: pointer; z-index: 90; transition: transform 0.2s; }
+.fab:active { transform: translateX(-50%) scale(0.95); }
+body.has-cart .fab { display: none; }
+
+.cart-bar { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 500px; z-index: 95; display: flex; align-items: center; gap: 12px; padding: 12px 16px calc(12px + var(--safe-bottom)); background: rgba(28,28,30,0.96); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-top: 1px solid rgba(10,132,255,0.4); box-shadow: 0 -8px 24px rgba(0,0,0,0.5); }
+.cart-clear { width: 34px; height: 34px; border-radius: 17px; border: none; background: var(--surface-light); color: var(--text-muted); font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.cart-bar-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cart-bar-units { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.cart-bar-total { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.cart-open { background: var(--accent); color: white; border: none; padding: 14px 20px; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.cart-open:active { opacity: 0.8; transform: scale(0.97); }
+
+/* ---------- Modales ---------- */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: flex-start; padding-top: 10vh; z-index: 100; }
+.modal-content { background: var(--surface); width: 92%; max-width: 380px; max-height: 85vh; overflow-y: auto; border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); overscroll-behavior: contain; }
+.action-sheet { align-items: flex-end; padding-top: 0; }
+.action-sheet .modal-content { border-radius: 24px 24px 0 0; width: 100%; max-width: 500px; max-height: 92vh; max-height: 92dvh; padding-bottom: calc(28px + var(--safe-bottom)); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 10px; }
+.modal-header h3 { font-size: 18px; margin: 0; font-weight: 600; }
+.header-with-action { display: flex; align-items: center; gap: 12px; }
+.btn-close { background: var(--surface-light); color: var(--text-muted); border: none; width: 32px; height: 32px; border-radius: 16px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+.btn-mini-danger { background: rgba(255,69,58,0.15); color: var(--danger); border: 1px solid rgba(255,69,58,0.3); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
+
+/* ---------- Formularios ---------- */
+label, .field-label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.field-label { margin-top: 16px; }
+.optional { text-transform: none; font-weight: 500; letter-spacing: 0; }
+.accent-label { color: var(--accent); margin-top: 12px; }
+.modal input[type="text"], .modal input[type="number"], .modal textarea { width: 100%; background: var(--surface-light); border: 1px solid transparent; color: white; padding: 12px; border-radius: 12px; font-size: 16px; outline: none; font-family: inherit; transition: border 0.2s; }
+.modal textarea { resize: none; line-height: 1.4; }
+.modal input:focus, .modal textarea:focus { border-color: var(--accent); }
+.modal input::placeholder, .modal textarea::placeholder { color: #5a5a5f; }
+.modal input.input-accent { background: rgba(10,132,255,0.1); color: var(--accent); border-color: rgba(10,132,255,0.3); font-weight: 700; }
+.form-group { margin-bottom: 16px; }
+.form-group.row { display: flex; gap: 12px; }
+.form-group.row > div { flex: 1; min-width: 0; }
+.box { background: rgba(255,255,255,0.03); padding: 12px; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+.grid-3 > div, .grid-2 > div { min-width: 0; }
+.grid-3 input, .grid-2 input { text-align: center; padding-left: 6px !important; padding-right: 6px !important; }
+.grid-3 label, .grid-2 label { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt { margin-top: 12px; }
+.hint { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 8px; }
+.hint.center { text-align: center; }
+.hint b { color: #c7c7cc; font-weight: 600; }
+.cost-line { font-size: 13px; color: var(--text-muted); margin-top: 10px; }
+.cost-line b { color: white; font-size: 15px; }
+.link-btn { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; }
+.sep { border: 0; border-top: 1px solid var(--border); margin: 16px 0 6px; }
+.file-wrap { position: relative; }
+.file-wrap input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; }
+
+.btn-save { width: 100%; background: var(--accent); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+.btn-save:active { opacity: 0.8; transform: scale(0.98); }
+.btn-secondary { background: var(--surface-light); color: white; }
+.btn-soft { background: rgba(10,132,255,0.2); color: var(--accent); padding: 13px; font-size: 15px; margin-top: 12px; }
+.btn-warning { background: var(--warning); color: #000; box-shadow: 0 4px 12px rgba(255,159,10,0.3); }
+.btn-reserve { background: rgba(191,90,242,0.18); color: var(--reserve); }
+.btn-text-danger { width: 100%; background: transparent; border: none; color: var(--danger); font-size: 14px; font-weight: 600; padding: 14px; margin-top: 4px; cursor: pointer; }
+
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper input { text-align: center; font-size: 20px !important; font-weight: 700; }
+.stepper-btn { width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px; border: none; background: var(--surface-light); color: white; font-size: 24px; cursor: pointer; }
+.stepper-btn:active { background: rgba(255,255,255,0.2); }
+
+/* ---------- Totales ---------- */
+.totals { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.total-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+.total-row span:last-child { font-size: 16px; font-weight: 800; color: white; font-variant-numeric: tabular-nums; }
+.total-row.warning span:last-child, .total-row.success span:last-child { color: inherit; }
+.total-box { background: rgba(50,215,75,0.08); border: 1px solid rgba(50,215,75,0.3); border-radius: 14px; padding: 12px; margin-top: 8px; }
+.total-box label { color: var(--success); }
+.modal .total-box input { background: transparent; border: none; padding: 0; font-size: 28px; font-weight: 800; color: var(--success); letter-spacing: -0.5px; }
+
+/* ---------- Venta ---------- */
+.co-items { display: flex; flex-direction: column; gap: 8px; }
+.co-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--surface-light); padding: 10px 10px 10px 14px; border-radius: 14px; }
+.co-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.co-item-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.co-item-sub { font-size: 12px; color: var(--text-muted); }
+.pay-chips { display: flex; gap: 8px; }
+.pay-chip { flex: 1; padding: 13px 8px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-light); color: var(--text-muted); font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+.pay-chip.active { background: rgba(10,132,255,0.18); color: var(--accent); border-color: rgba(10,132,255,0.5); }
+.modal input.plain-input { margin-bottom: 6px; }
+
+/* ---------- Tanda ---------- */
+.lot-lines { display: flex; flex-direction: column; gap: 8px; }
+.planner-item { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.pi-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pi-name { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.pi-qty { color: var(--text-muted); font-size: 12px; margin-left: 4px; font-weight: 600; }
+.pi-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.pi-flavors { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.pi-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--text-muted); padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); }
+.pi-row b { color: white; }
+.pi-profit { color: var(--warning); font-weight: 700; }
+
+/* ---------- Ventas, ranking y reservas ---------- */
+.history-tabs { display: flex; gap: 4px; margin-bottom: 14px; background: var(--surface-light); padding: 4px; border-radius: 14px; }
+.history-tab { flex: 1; padding: 9px 4px; background: transparent; border: none; color: var(--text-muted); font-weight: 600; border-radius: 10px; cursor: pointer; transition: 0.2s; font-size: 13px; }
+.history-tab.active { background: var(--surface); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+.history-summary { display: flex; gap: 8px; margin-bottom: 10px; }
+.history-stat { flex: 1; min-width: 0; background: var(--surface-light); padding: 12px 6px; border-radius: 12px; display: flex; flex-direction: column; border: 1px solid var(--border); text-align: center; }
+.history-stat-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+.history-stat-value { font-size: clamp(13px, 4vw, 16px); font-weight: 700; color: white; font-variant-numeric: tabular-nums; }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.pay-split { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 14px; min-height: 15px; }
+.pay-split b { color: white; }
+.lot-progress { background: rgba(255,159,10,0.07); border: 1px solid rgba(255,159,10,0.25); border-radius: 14px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--text-muted); }
+.lot-progress-title { display: flex; justify-content: space-between; font-weight: 700; color: white; font-size: 13px; margin-bottom: 8px; }
+.lot-bar { height: 8px; border-radius: 4px; background: var(--surface-light); overflow: hidden; margin-bottom: 8px; }
+.lot-bar > div { height: 100%; border-radius: 4px; background: var(--warning); }
+.lot-bar.done > div { background: var(--success); }
+
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-item { background: var(--surface-light); padding: 12px 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.history-item-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.history-item-title { font-size: 14px; font-weight: 600; color: white; overflow-wrap: anywhere; }
+.history-item-subtitle { font-size: 12px; color: var(--text-muted); }
+.history-item-right { text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+.history-item-price { font-size: 14px; font-weight: 700; color: var(--success); }
+.btn-undo { font-size: 11px; color: var(--accent); background: transparent; border: none; font-weight: 600; cursor: pointer; text-decoration: underline; opacity: 0.8; padding: 2px 0; }
+.btn-undo:active { opacity: 0.4; }
+.empty-history { text-align: center; color: var(--text-muted); font-size: 14px; line-height: 1.5; padding: 20px 0; }
+
+.rank-section { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 2px; }
+.rank-item { background: var(--surface-light); border-radius: 12px; padding: 10px 14px; position: relative; overflow: hidden; }
+.rank-fill { position: absolute; inset: 0 auto 0 0; background: rgba(10,132,255,0.16); }
+.rank-content { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.rank-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rank-name span:first-child { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.rank-name span:last-child { font-size: 11px; color: var(--text-muted); }
+.rank-count { font-size: 15px; font-weight: 800; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+.res-card { background: var(--surface-light); border-radius: 16px; padding: 14px; border: 1px solid rgba(191,90,242,0.25); display: flex; flex-direction: column; gap: 8px; }
+.res-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.res-name { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.res-age { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.res-age.old { color: var(--warning); font-weight: 700; }
+.res-items { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.res-total { font-size: 15px; font-weight: 800; color: var(--success); }
+.res-actions { display: flex; gap: 6px; margin-top: 2px; }
+.res-actions button { flex: 1; padding: 11px 6px; border-radius: 10px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; }
+.res-deliver { background: var(--accent); color: white; }
+.res-copy { background: rgba(255,255,255,0.08); color: white; }
+.res-cancel { background: rgba(255,69,58,0.15); color: var(--danger); }
+
+/* ---------- Avisos ---------- */
+.toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 200; gap: 10px; }
+.toast { background: var(--success); color: #000; padding: 12px 24px; border-radius: 20px; font-weight: 600; font-size: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: slideDown 0.3s ease, fadeOut 0.3s ease 2.2s forwards; }
+.toast.warn { background: var(--warning); }
+@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeOut { to { opacity: 0; } }
+
+@media (max-width: 390px) {
+  .app-header { padding: 12px 10px; }
+  .app-title { font-size: 18px; }
+  .btn-copy { padding: 6px 12px; font-size: 13px; gap: 4px; }
+  .btn-icon-header { padding: 4px; }
+  .dashboard { padding: 15px 10px 0; gap: 8px; }
+  .dash-card { padding: 12px 10px; border-radius: 16px; }
+  .search-container { padding: 12px 10px 10px; }
+  .filter-container { padding: 0 10px; }
+  .list-hint { padding: 10px; }
+  .stock-list { padding-left: 10px; padding-right: 10px; }
+  .model-card { border-radius: 16px; }
+  .model-title { padding: 12px 10px; gap: 6px; }
+  .icon-btn { padding: 6px; }
+  .flavor-row { padding-right: 8px; }
+  .flavor-main { padding: 8px; }
+  .modal-content { padding: 20px 16px; }
+}
+  </style>
 </head>
 <body>
 
@@ -358,6 +641,1350 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script>
+'use strict';
+
+/* =========================================================
+   StockVape — stock, tandas, ventas y reservas
+   Todo se guarda en el navegador (localStorage).
+   ========================================================= */
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+/* ---------------- UTILIDADES ---------------- */
+const $ = (id) => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const num = (v) => {
+  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  return isFinite(n) ? n : 0;
+};
+const int = (v) => Math.round(num(v));
+const money = (n) => '$' + Math.round(n || 0).toLocaleString('es-AR');
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+const sameId = (a, b) => String(a) === String(b);
+const dayKey = (ts) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+const DAY = 86400000;
+
+function load(key, fallback) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return v == null ? fallback : v;
+  } catch (e) {
+    return fallback;
+  }
+}
+function store(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    alert('No se pudo guardar. Revisá el espacio libre del celular.');
+  }
+}
+
+/* ---------------- ESTADO ---------------- */
+const K = {
+  stock: 'vapeStock', sales: 'vapeSales', res: 'vapeReservations', lots: 'vapeLots',
+  draft: 'vapeLotDraft', cart: 'vapeCart', config: 'vapeConfig', eye: 'vapeEye',
+  collapsed: 'vapeCollapsed'
+};
+
+const DEFAULT_CONFIG = {
+  usdt: 1586,      // cotización USDT en pesos
+  pasero: 15,      // % que cobra el pasero sobre la compra
+  margin: 60,      // % de margen para sugerir el precio de venta
+  promoPair: 0,    // descuento en pesos por cada 2 unidades de una venta
+  lowStock: 2,     // aviso de poco stock
+  targetStock: 10, // hasta cuántas unidades reponer
+  lastBackup: 0
+};
+
+let stock = load(K.stock, []);
+let sales = load(K.sales, []);
+let reservations = load(K.res, []);
+let lots = load(K.lots, []);
+let config = Object.assign({}, DEFAULT_CONFIG, load(K.config, {}));
+let draft = load(K.draft, null);
+let cart = load(K.cart, null);
+let isEyeOpen = localStorage.getItem(K.eye) !== 'false';
+let collapsed = new Set(load(K.collapsed, []));
+let currentFilter = 'all';
+let historyRange = 'today';
+let historyView = 'sales';
+let lotPriceTouched = false;
+
+/* --- Migración desde la versión anterior --- */
+(function migrate() {
+  if (!Array.isArray(stock)) stock = [];
+  if (!Array.isArray(sales)) sales = [];
+  if (!Array.isArray(reservations)) reservations = [];
+  if (!Array.isArray(lots)) lots = [];
+
+  stock = stock.filter((i) => i && i.model && i.flavor != null).map((i) => Object.assign({}, i, {
+    id: i.id == null ? uid() : i.id,
+    model: String(i.model),
+    flavor: String(i.flavor),
+    qty: Math.max(0, parseInt(i.qty, 10) || 0),
+    cost: num(i.cost),
+    price: num(i.price)
+  }));
+
+  // Cotización y pasero que usaba el simulador viejo
+  if (localStorage.getItem(K.config) === null) {
+    const oldPasero = parseFloat(localStorage.getItem('vapePasero'));
+    const oldUsdt = parseFloat(localStorage.getItem('vapeUsdt'));
+    if (isFinite(oldPasero)) config.pasero = oldPasero;
+    if (isFinite(oldUsdt) && oldUsdt > 0) config.usdt = oldUsdt;
+  }
+
+  // Lo que estaba en "Futuras compras" pasa a ser la tanda en borrador
+  if (!draft || !Array.isArray(draft.lines)) {
+    draft = { freight: 0, lines: [] };
+    const oldPlanner = load('vapePlanner', []);
+    if (Array.isArray(oldPlanner)) {
+      oldPlanner.forEach((p) => {
+        if (!p || !p.name) return;
+        draft.lines.push({
+          id: uid(),
+          model: String(p.name).trim().toUpperCase(),
+          usd: num(p.usd),
+          price: num(p.price),
+          variants: [{ flavor: 'Único', qty: Math.max(1, parseInt(p.qty, 10) || 1) }]
+        });
+      });
+    }
+  }
+
+  if (!cart || !Array.isArray(cart.items)) cart = emptyCart();
+})();
+
+function emptyCart() {
+  return { items: [], resId: null, pay: 'efectivo', customer: '', customTotal: null };
+}
+
+const saveStock = () => store(K.stock, stock);
+const saveSales = () => store(K.sales, sales);
+const saveRes = () => store(K.res, reservations);
+const saveLots = () => store(K.lots, lots);
+const saveDraft = () => store(K.draft, draft);
+const saveCart = () => store(K.cart, cart);
+const saveConfig = () => store(K.config, config);
+
+/* ---------------- ICONOS ---------------- */
+const iconTrash = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>';
+const iconEdit = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+const iconChevron = (isCollapsed) => `<svg class="arrow ${isCollapsed ? 'collapsed' : ''}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+const iconEyeOpen = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+const iconEyeClosed = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+
+/* ---------------- AVISOS Y MODALES ---------------- */
+const stockContainer = $('stock-container');
+const searchInput = $('search-input');
+
+function showToast(message, type) {
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (type === 'warn' ? ' warn' : '');
+  toast.textContent = message;
+  const box = $('toast-container');
+  while (box.children.length >= 2) box.firstChild.remove();
+  box.appendChild(toast);
+  setTimeout(() => toast.remove(), 2700);
+}
+
+function openModal(id) {
+  $(id).classList.remove('hidden');
+  document.documentElement.classList.add('modal-open');
+}
+function closeModal(id) {
+  $(id).classList.add('hidden');
+  if (!document.querySelector('.modal:not(.hidden)')) {
+    document.documentElement.classList.remove('modal-open');
+  }
+}
+const isOpen = (id) => !$(id).classList.contains('hidden');
+
+document.querySelectorAll('.modal').forEach((modal) => {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.closest('[data-close]')) closeModal(modal.id);
+  });
+});
+
+function copyText(text, okMessage) {
+  const legacy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+  };
+  const done = () => showToast(okMessage);
+  const fail = () => alert('No se pudo copiar.');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(() => (legacy() ? done() : fail()));
+  } else if (legacy()) {
+    done();
+  } else {
+    fail();
+  }
+}
+
+/* ---------------- STOCK: CONSULTAS ---------------- */
+const findItem = (id) => stock.find((i) => sameId(i.id, id));
+const modelItems = (model) => stock.filter((i) => i.model === model);
+const modelCost = (model) => modelItems(model).reduce((m, i) => Math.max(m, i.cost || 0), 0);
+const modelPrice = (model) => modelItems(model).reduce((m, i) => Math.max(m, i.price || 0), 0);
+
+// Unidades apartadas en reservas (se puede excluir una reserva puntual)
+function reservedQty(stockId, exceptResId) {
+  let total = 0;
+  reservations.forEach((r) => {
+    if (exceptResId && r.id === exceptResId) return;
+    r.items.forEach((it) => { if (sameId(it.stockId, stockId)) total += it.qty; });
+  });
+  return total;
+}
+// Unidades libres para vender a cualquiera
+const freeQty = (item) => Math.max(0, item.qty - reservedQty(item.id));
+// Tope para la venta en curso (si es la entrega de una reserva, sus unidades cuentan)
+const maxForCart = (item) => Math.max(0, item.qty - reservedQty(item.id, cart.resId));
+const cartQty = (stockId) => {
+  const ci = cart.items.find((c) => sameId(c.stockId, stockId));
+  return ci ? ci.qty : 0;
+};
+
+/* ---------------- VENTA EN CURSO ---------------- */
+function cartTotals(c) {
+  c = c || cart;
+  const rows = [];
+  let units = 0;
+  let subtotal = 0;
+  c.items.forEach((ci) => {
+    const it = findItem(ci.stockId);
+    if (!it) return;
+    rows.push({ it, qty: ci.qty });
+    units += ci.qty;
+    subtotal += ci.qty * (it.price || 0);
+  });
+  const pairs = Math.floor(units / 2);
+  const promo = Math.min(subtotal, pairs * (config.promoPair || 0));
+  const auto = subtotal - promo;
+  const isManual = c.customTotal != null;
+  return { rows, units, subtotal, pairs, promo, auto, isManual, total: isManual ? c.customTotal : auto };
+}
+
+function resetCart() {
+  cart = emptyCart();
+  saveCart();
+}
+
+function changeCart(stockId, delta) {
+  const it = findItem(stockId);
+  if (!it) return;
+  const max = maxForCart(it);
+  const next = cartQty(stockId) + delta;
+  if (delta > 0 && next > max) {
+    showToast(max === 0 ? 'No quedan unidades libres' : `Solo hay ${max} libre${max === 1 ? '' : 's'}`, 'warn');
+    return;
+  }
+  const existing = cart.items.find((c) => sameId(c.stockId, stockId));
+  if (next <= 0) cart.items = cart.items.filter((c) => !sameId(c.stockId, stockId));
+  else if (existing) existing.qty = next;
+  else cart.items.push({ stockId: String(stockId), qty: next });
+
+  cart.customTotal = null;
+  if (cart.items.length === 0) resetCart(); else saveCart();
+  render();
+  if (isOpen('checkout-modal')) renderCheckout();
+}
+
+// Limpia la venta y las reservas si se borró o ajustó stock
+function sanitize() {
+  reservations.forEach((r) => { r.items = r.items.filter((it) => findItem(it.stockId)); });
+  reservations = reservations.filter((r) => r.items.length > 0);
+  if (cart.resId && !reservations.some((r) => r.id === cart.resId)) cart.resId = null;
+  cart.items = cart.items
+    .filter((c) => findItem(c.stockId))
+    .map((c) => ({ stockId: c.stockId, qty: Math.min(c.qty, maxForCart(findItem(c.stockId))) }))
+    .filter((c) => c.qty > 0);
+  if (cart.items.length === 0) cart = emptyCart();
+  saveRes();
+  saveCart();
+}
+
+function renderCartBar() {
+  const t = cartTotals();
+  const has = t.units > 0;
+  $('cart-bar').classList.toggle('hidden', !has);
+  document.body.classList.toggle('has-cart', has);
+  if (!has) return;
+  const res = cart.resId ? reservations.find((r) => r.id === cart.resId) : null;
+  $('cart-bar-units').textContent = `${t.units} u.` + (res ? ` · reserva de ${res.name}` : (t.promo > 0 ? ' · con promo' : ''));
+  $('cart-bar-total').textContent = money(t.total);
+}
+
+$('cart-clear').addEventListener('click', () => {
+  resetCart();
+  render();
+});
+$('cart-open').addEventListener('click', openCheckout);
+
+function openCheckout() {
+  if (cartTotals().units === 0) return;
+  $('co-customer').value = cart.customer || '';
+  renderCheckout();
+  openModal('checkout-modal');
+}
+
+function renderCheckout() {
+  const t = cartTotals();
+  if (t.units === 0) { closeModal('checkout-modal'); return; }
+  const res = cart.resId ? reservations.find((r) => r.id === cart.resId) : null;
+
+  $('checkout-title').textContent = res ? `🧾 Entrega · ${res.name}` : '🧾 Venta';
+  $('checkout-items').innerHTML = t.rows.map(({ it, qty }) => `
+    <div class="co-item">
+      <div class="co-item-info">
+        <span class="co-item-name">${esc(it.flavor)}</span>
+        <span class="co-item-sub">${esc(it.model)} · ${money(it.price)} c/u</span>
+      </div>
+      <div class="controls in-cart">
+        <button class="btn-qty" data-action="cart-sub" data-id="${esc(it.id)}">−</button>
+        <span class="qty-number">${qty}</span>
+        <button class="btn-qty" data-action="cart-add" data-id="${esc(it.id)}">+</button>
+      </div>
+    </div>`).join('');
+
+  $('co-subtotal').textContent = money(t.subtotal);
+  $('co-promo-row').classList.toggle('hidden', t.promo === 0);
+  $('co-promo-label').textContent = `Promo por par (${t.pairs} par${t.pairs === 1 ? '' : 'es'})`;
+  $('co-promo').textContent = '-' + money(t.promo);
+  $('co-promo-hint').classList.toggle('hidden', !(t.units >= 2 && !config.promoPair));
+  $('co-total').value = Math.round(t.total);
+
+  document.querySelectorAll('.pay-chip').forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.pay === cart.pay);
+  });
+  $('save-res-btn').textContent = res ? '🔖 Guardar cambios en la reserva' : '🔖 Guardar como reserva';
+  updateCheckoutTotalUI();
+}
+
+function updateCheckoutTotalUI() {
+  const t = cartTotals();
+  $('co-manual-note').classList.toggle('hidden', !t.isManual);
+  $('confirm-sale-btn').textContent = `Confirmar venta · ${money(t.total)}`;
+  renderCartBar();
+}
+
+$('checkout-items').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  changeCart(el.dataset.id, el.dataset.action === 'cart-add' ? 1 : -1);
+});
+
+$('co-total').addEventListener('input', () => {
+  const value = $('co-total').value.trim();
+  const auto = cartTotals(Object.assign({}, cart, { customTotal: null })).auto;
+  cart.customTotal = (value === '' || int(value) === Math.round(auto)) ? null : Math.max(0, int(value));
+  saveCart();
+  updateCheckoutTotalUI();
+});
+$('co-reset-total').addEventListener('click', () => {
+  cart.customTotal = null;
+  saveCart();
+  renderCheckout();
+});
+$('co-customer').addEventListener('input', () => {
+  cart.customer = $('co-customer').value;
+  saveCart();
+});
+document.querySelectorAll('.pay-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    cart.pay = chip.dataset.pay;
+    saveCart();
+    renderCheckout();
+  });
+});
+
+$('confirm-sale-btn').addEventListener('click', () => {
+  const t = cartTotals();
+  if (t.units === 0) return;
+
+  // Una línea de historial por unidad, repartiendo el total cobrado
+  const units = [];
+  t.rows.forEach(({ it, qty }) => { for (let k = 0; k < qty; k++) units.push(it); });
+  const now = Date.now();
+  const saleId = uid();
+  const total = Math.round(t.total);
+  let remaining = total;
+  units.forEach((it, idx) => {
+    let net;
+    if (idx === units.length - 1) net = remaining;
+    else if (t.subtotal > 0) net = Math.round(total * (it.price || 0) / t.subtotal);
+    else net = Math.round(total / units.length);
+    remaining -= net;
+    sales.push({
+      id: uid(), saleId, timestamp: now, dateStr: dayKey(now),
+      model: it.model, flavor: it.flavor,
+      cost: it.cost || 0, price: net, listPrice: it.price || 0,
+      pay: cart.pay, customer: (cart.customer || '').trim()
+    });
+  });
+  t.rows.forEach(({ it, qty }) => { it.qty = Math.max(0, it.qty - qty); });
+  if (cart.resId) reservations = reservations.filter((r) => r.id !== cart.resId);
+
+  saveStock();
+  saveSales();
+  saveRes();
+  resetCart();
+  closeModal('checkout-modal');
+  render();
+  showToast(`✅ Venta registrada · ${money(total)}`);
+});
+
+/* ---------------- RESERVAS ---------------- */
+$('save-res-btn').addEventListener('click', () => {
+  const t = cartTotals();
+  if (t.units === 0) return;
+  const name = (cart.customer || '').trim();
+  if (!name) {
+    showToast('Poné el nombre del cliente para reservar', 'warn');
+    $('co-customer').focus();
+    return;
+  }
+  const items = cart.items.map((c) => ({ stockId: c.stockId, qty: c.qty }));
+  const existing = cart.resId ? reservations.find((r) => r.id === cart.resId) : null;
+  if (existing) {
+    existing.name = name;
+    existing.items = items;
+    existing.customTotal = cart.customTotal;
+  } else {
+    reservations.push({ id: uid(), name, createdAt: Date.now(), items, customTotal: cart.customTotal });
+  }
+  saveRes();
+  resetCart();
+  closeModal('checkout-modal');
+  render();
+  showToast(`🔖 Reservado para ${name}`);
+});
+
+$('btn-reservas').addEventListener('click', () => {
+  renderReservas();
+  openModal('reservas-modal');
+});
+
+function reservationText(r) {
+  const t = cartTotals({ items: r.items, customTotal: r.customTotal == null ? null : r.customTotal });
+  let text = `Hola ${r.name}! 👋 Te dejo reservado:\n\n`;
+  t.rows.forEach(({ it, qty }) => { text += `• ${it.model} – ${it.flavor} x${qty}\n`; });
+  if (t.promo > 0 && !t.isManual) text += `\nPromo por par: -${money(t.promo)}`;
+  text += `\n*Total: ${money(t.total)}*\nPodés pagar en efectivo o por transferencia. Avisame cuándo lo pasás a buscar 🙌`;
+  return text;
+}
+
+function renderReservas() {
+  const list = $('reservas-list');
+  if (reservations.length === 0) {
+    list.innerHTML = '<div class="empty-history">No hay reservas activas.<br>Armá la venta, poné el nombre del cliente y tocá “Guardar como reserva”.</div>';
+    return;
+  }
+  list.innerHTML = reservations.slice().sort((a, b) => b.createdAt - a.createdAt).map((r) => {
+    const t = cartTotals({ items: r.items, customTotal: r.customTotal == null ? null : r.customTotal });
+    const days = Math.floor((Date.now() - r.createdAt) / DAY);
+    const age = days <= 0 ? 'Hoy' : (days === 1 ? 'Ayer' : `Hace ${days} días`);
+    return `
+      <div class="res-card">
+        <div class="res-head">
+          <span class="res-name">${esc(r.name)}</span>
+          <span class="res-age ${days >= 3 ? 'old' : ''}">${age}</span>
+        </div>
+        <div class="res-items">${t.rows.map(({ it, qty }) => `${esc(it.model)} · ${esc(it.flavor)} ×${qty}`).join('<br>')}</div>
+        <span class="res-total">${t.units} u. · ${money(t.total)}</span>
+        <div class="res-actions">
+          <button class="res-deliver" data-action="res-deliver" data-id="${esc(r.id)}">Entregar</button>
+          <button class="res-copy" data-action="res-copy" data-id="${esc(r.id)}">Copiar mensaje</button>
+          <button class="res-cancel" data-action="res-cancel" data-id="${esc(r.id)}">Cancelar</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+$('reservas-list').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const r = reservations.find((x) => x.id === el.dataset.id);
+  if (!r) return;
+
+  if (el.dataset.action === 'res-copy') {
+    copyText(reservationText(r), '✅ Mensaje copiado');
+  } else if (el.dataset.action === 'res-cancel') {
+    if (!confirm(`¿Cancelar la reserva de ${r.name}? Las unidades vuelven a quedar libres.`)) return;
+    reservations = reservations.filter((x) => x.id !== r.id);
+    if (cart.resId === r.id) resetCart();
+    saveRes();
+    render();
+    renderReservas();
+    showToast('Reserva cancelada');
+  } else if (el.dataset.action === 'res-deliver') {
+    if (cart.items.length > 0 && cart.resId !== r.id &&
+        !confirm('Tenés una venta en curso. ¿La descartás para entregar esta reserva?')) return;
+    cart = {
+      items: r.items.map((it) => ({ stockId: String(it.stockId), qty: it.qty })),
+      resId: r.id, pay: 'efectivo', customer: r.name,
+      customTotal: r.customTotal == null ? null : r.customTotal
+    };
+    sanitize();
+    closeModal('reservas-modal');
+    render();
+    openCheckout();
+  }
+});
+
+/* ---------------- INGRESO DE TANDA ---------------- */
+// Entiende "Menta x3", "Menta (3)", "Menta: 3", "Menta 3u", "3 Menta", "3x Menta"
+function parseFlavorLine(raw, defaultQty) {
+  let s = String(raw).replace(/^[\s\-–•*·▪◦]+/, '').replace(/^\d+[.)]\s+/, '').trim();
+  if (!s) return null;
+  let qty = null;
+  const tryMatch = (re) => {
+    const m = s.match(re);
+    if (!m) return false;
+    const n = parseInt(m[1], 10);
+    if (!(n >= 1 && n <= 500)) return false;   // números grandes son parte del nombre
+    const rest = (s.slice(0, m.index) + s.slice(m.index + m[0].length)).trim();
+    if (!rest) return false;
+    qty = n;
+    s = rest;
+    return true;
+  };
+  tryMatch(/\s*\(\s*x?\s*(\d+)\s*(?:unidades|unid|un|u)?\.?\s*\)\s*$/i) ||
+  tryMatch(/(?:\s*[-–=:]\s*|\s+)x?\s*(\d+)\s*(?:unidades|unid|un|u)?\.?\s*$/i) ||
+  tryMatch(/^x?\s*(\d+)\s*x?\s+(?=\D)/i);
+  s = s.replace(/[\s\-–:=]+$/, '').trim();
+  if (!s) return null;
+  return { flavor: s, qty: qty == null ? defaultQty : qty };
+}
+
+function parseVariants(text, defaultQty) {
+  const out = [];
+  String(text).split(/[\n,;]+/).forEach((line) => {
+    if (/sabores\s+dispo/i.test(line)) return;
+    const v = parseFlavorLine(line, defaultQty);
+    if (!v) return;
+    const dup = out.find((o) => o.flavor.toLowerCase() === v.flavor.toLowerCase());
+    if (dup) dup.qty += v.qty; else out.push(v);
+  });
+  return out;
+}
+
+const lineUnits = (line) => line.variants.reduce((s, v) => s + v.qty, 0);
+const baseCostArs = (usd) => usd * (1 + (config.pasero || 0) / 100) * (config.usdt || 0);
+// El flete se reparte parejo entre todas las unidades compradas en USD
+function freightPerUnit(extraUnits) {
+  const units = draft.lines.reduce((s, l) => s + (l.usd > 0 ? lineUnits(l) : 0), 0) + (extraUnits || 0);
+  return units > 0 ? (draft.freight || 0) / units : 0;
+}
+const lineCostArs = (line, fpu) => (line.usd > 0 ? baseCostArs(line.usd) + fpu : modelCost(line.model));
+const linePrice = (line) => (line.price > 0 ? line.price : modelPrice(line.model));
+
+function formVariants() {
+  const defaultQty = Math.max(1, parseInt($('lot-qty').value, 10) || 1);
+  const text = $('lot-flavors').value.trim();
+  if (!text) return { variants: [{ flavor: 'Único', qty: defaultQty }], empty: true };
+  return { variants: parseVariants(text, defaultQty), empty: false };
+}
+
+function updateLotForm() {
+  const usd = num($('lot-usd').value);
+  const margin = num($('lot-margin').value);
+  const { variants, empty } = formVariants();
+  const units = variants.reduce((s, v) => s + v.qty, 0);
+
+  $('lot-preview').textContent = empty
+    ? `Sin lista de sabores se carga como “Único” × ${units}.`
+    : (variants.length
+      ? `${variants.length} sabor${variants.length === 1 ? '' : 'es'} · ${units} u. → ` + variants.map((v) => `${v.flavor} ×${v.qty}`).join(' · ')
+      : 'No pude leer ningún sabor.');
+
+  if (usd > 0) {
+    const cost = baseCostArs(usd) + freightPerUnit(units);
+    $('lot-live-cost').textContent = money(cost);
+    if (!lotPriceTouched) $('lot-price').value = Math.round(cost * (1 + margin / 100) / 100) * 100;
+  } else {
+    $('lot-live-cost').textContent = '$0';
+    if (!lotPriceTouched) $('lot-price').value = '';
+  }
+}
+
+function renderLot() {
+  const fpu = freightPerUnit(0);
+  let units = 0;
+  let invest = 0;
+  let revenue = 0;
+  let usdTotal = 0;
+
+  $('lot-lines').innerHTML = draft.lines.map((line) => {
+    const u = lineUnits(line);
+    const cost = lineCostArs(line, fpu);
+    const price = linePrice(line);
+    units += u;
+    invest += cost * u;
+    revenue += price * u;
+    usdTotal += (line.usd || 0) * u;
+    return `
+      <div class="planner-item">
+        <div class="pi-head">
+          <span class="pi-name">${esc(line.model)}<span class="pi-qty">${u} u.</span></span>
+          <span class="pi-actions">
+            <button class="icon-btn" data-action="lot-edit" data-id="${esc(line.id)}" aria-label="Editar">${iconEdit}</button>
+            <button class="icon-btn" data-action="lot-del" data-id="${esc(line.id)}" aria-label="Quitar">${iconTrash}</button>
+          </span>
+        </div>
+        <div class="pi-flavors">${line.variants.map((v) => `${esc(v.flavor)} ×${v.qty}`).join(' · ')}</div>
+        <div class="pi-row">
+          <span>Costo real <b>${money(cost)}</b></span>
+          <span>Venta <b>${money(price)}</b></span>
+          <span class="pi-profit">Limpio ${money(price - cost)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('lot-total-units').textContent = units;
+  $('lot-total-usd').textContent = 'US$ ' + usdTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  $('lot-total-invest').textContent = money(invest);
+  $('lot-total-profit').textContent = money(revenue - invest);
+  $('lot-commit-btn').textContent = units > 0 ? `✅ Ingresar ${units} u. al stock` : '✅ Ingresar al stock';
+  $('lot-models').innerHTML = [...new Set(stock.map((i) => i.model))].map((m) => `<option value="${esc(m)}"></option>`).join('');
+}
+
+function clearLotForm() {
+  ['lot-model', 'lot-usd', 'lot-flavors', 'lot-price'].forEach((id) => { $(id).value = ''; });
+  $('lot-qty').value = '1';
+  lotPriceTouched = false;
+  updateLotForm();
+}
+
+$('fab-btn').addEventListener('click', () => {
+  $('lot-usdt').value = config.usdt;
+  $('lot-pasero').value = config.pasero;
+  $('lot-freight').value = draft.freight || '';
+  if (!$('lot-margin').value) $('lot-margin').value = config.margin;
+  renderLot();
+  updateLotForm();
+  openModal('lot-modal');
+});
+
+['lot-usdt', 'lot-pasero', 'lot-freight'].forEach((id) => {
+  $(id).addEventListener('input', () => {
+    config.usdt = num($('lot-usdt').value);
+    config.pasero = num($('lot-pasero').value);
+    draft.freight = Math.max(0, num($('lot-freight').value));
+    saveConfig();
+    saveDraft();
+    renderLot();
+    updateLotForm();
+  });
+});
+['lot-usd', 'lot-margin', 'lot-qty', 'lot-flavors'].forEach((id) => {
+  $(id).addEventListener('input', updateLotForm);
+});
+$('lot-price').addEventListener('input', () => {
+  lotPriceTouched = $('lot-price').value.trim() !== '';
+  if (!lotPriceTouched) updateLotForm();
+});
+
+$('lot-add-btn').addEventListener('click', () => {
+  const model = $('lot-model').value.trim().toUpperCase();
+  const usd = num($('lot-usd').value);
+  const price = int($('lot-price').value);
+  const { variants } = formVariants();
+
+  if (!model) return showToast('Poné el nombre del modelo', 'warn');
+  if (variants.length === 0) return showToast('No pude leer los sabores', 'warn');
+  if (usd <= 0 && modelCost(model) <= 0) return showToast('Falta el costo en USD', 'warn');
+  if (price <= 0 && modelPrice(model) <= 0) return showToast('Falta el precio de venta', 'warn');
+
+  const same = draft.lines.find((l) => l.model === model && l.usd === usd);
+  if (same) {
+    variants.forEach((v) => {
+      const dup = same.variants.find((o) => o.flavor.toLowerCase() === v.flavor.toLowerCase());
+      if (dup) dup.qty += v.qty; else same.variants.push(v);
+    });
+    if (price > 0) same.price = price;
+  } else {
+    draft.lines.push({ id: uid(), model, usd, price, variants });
+  }
+  saveDraft();
+  clearLotForm();
+  renderLot();
+  showToast(`✅ ${model} agregado a la tanda`);
+});
+
+$('lot-lines').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const line = draft.lines.find((l) => l.id === el.dataset.id);
+  if (!line) return;
+  draft.lines = draft.lines.filter((l) => l.id !== line.id);
+  saveDraft();
+  if (el.dataset.action === 'lot-edit') {
+    $('lot-model').value = line.model;
+    $('lot-usd').value = line.usd || '';
+    $('lot-price').value = line.price || '';
+    $('lot-qty').value = '1';
+    $('lot-flavors').value = line.variants.map((v) => `${v.flavor} x${v.qty}`).join('\n');
+    lotPriceTouched = line.price > 0;
+    $('lot-model').scrollIntoView({ block: 'center' });
+  }
+  renderLot();
+  updateLotForm();
+});
+
+$('lot-commit-btn').addEventListener('click', () => {
+  if (draft.lines.length === 0) return showToast('Agregá al menos un modelo a la tanda', 'warn');
+  if ($('lot-model').value.trim() &&
+      !confirm('Hay un modelo escrito que todavía no agregaste a la tanda. ¿Ingresar igual sin ese modelo?')) return;
+
+  const totalUnits = draft.lines.reduce((s, l) => s + lineUnits(l), 0);
+  if (!confirm(`¿Ingresar ${totalUnits} unidades al stock?`)) return;
+
+  const fpu = freightPerUnit(0);
+  const record = {
+    id: uid(), timestamp: Date.now(), usdt: config.usdt, pasero: config.pasero,
+    freight: draft.freight || 0, units: 0, invest: 0, lines: []
+  };
+
+  draft.lines.forEach((line) => {
+    const units = lineUnits(line);
+    const exactCost = lineCostArs(line, fpu);
+    const newCost = Math.round(exactCost);
+    const price = linePrice(line);
+    const items = modelItems(line.model);
+    const oldUnits = items.reduce((s, i) => s + i.qty, 0);
+    const oldCost = modelCost(line.model);
+
+    // Si ya había unidades con otro costo, se promedia en vez de pisarlo
+    let cost = newCost;
+    if (oldUnits > 0 && oldCost > 0 && newCost > 0) {
+      cost = Math.round((oldUnits * oldCost + units * newCost) / (oldUnits + units));
+    } else if (newCost === 0) {
+      cost = oldCost;
+    }
+    items.forEach((i) => { i.cost = cost; if (price > 0) i.price = price; });
+
+    line.variants.forEach((v) => {
+      const existing = items.find((i) => i.flavor.toLowerCase() === v.flavor.toLowerCase());
+      if (existing) {
+        existing.qty += v.qty;
+      } else {
+        const item = { id: uid(), model: line.model, flavor: v.flavor, qty: v.qty, cost, price };
+        stock.push(item);
+        items.push(item);
+      }
+    });
+
+    record.units += units;
+    record.invest += exactCost * units;
+    record.lines.push({ model: line.model, usd: line.usd, qty: units, cost: newCost, price });
+    collapsed.delete(line.model);
+  });
+
+  record.invest = Math.round(record.invest);
+  lots.push(record);
+  draft = { freight: 0, lines: [] };
+  config.margin = num($('lot-margin').value) || config.margin;
+  saveStock();
+  saveLots();
+  saveDraft();
+  saveConfig();
+  store(K.collapsed, [...collapsed]);
+  clearLotForm();
+  closeModal('lot-modal');
+  render();
+  showToast(`📦 ${record.units} unidades ingresadas`);
+});
+
+/* ---------------- EDITAR MODELO ---------------- */
+function openEditModel(model) {
+  $('edit-old-name').value = model;
+  $('edit-model-name').value = model;
+  $('edit-model-cost').value = modelCost(model) || '';
+  $('edit-model-price').value = modelPrice(model) || '';
+  openModal('edit-modal');
+}
+
+$('save-edit-btn').addEventListener('click', () => {
+  const oldName = $('edit-old-name').value;
+  const newName = $('edit-model-name').value.trim().toUpperCase();
+  if (!newName) return showToast('El modelo necesita un nombre', 'warn');
+  const newCost = Math.max(0, int($('edit-model-cost').value));
+  const newPrice = Math.max(0, int($('edit-model-price').value));
+  stock.forEach((item) => {
+    if (item.model === oldName) {
+      item.model = newName;
+      item.cost = newCost;
+      item.price = newPrice;
+    }
+  });
+  if (collapsed.delete(oldName)) collapsed.add(newName);
+  store(K.collapsed, [...collapsed]);
+  saveStock();
+  closeModal('edit-modal');
+  render();
+  showToast('✅ Modelo actualizado');
+});
+
+function deleteModel(model) {
+  if (!confirm(`¿Seguro que querés eliminar el modelo "${model}" entero?`)) return;
+  stock = stock.filter((i) => i.model !== model);
+  saveStock();
+  sanitize();
+  render();
+  showToast('🗑️ Modelo eliminado');
+}
+
+/* ---------------- CORREGIR SABOR ---------------- */
+function openFlavor(id) {
+  const item = findItem(id);
+  if (!item) return;
+  const reserved = reservedQty(item.id);
+  $('flavor-id').value = String(item.id);
+  $('flavor-title').textContent = item.model;
+  $('flavor-name-input').value = item.flavor;
+  $('flavor-qty-input').value = item.qty;
+  $('flavor-note').textContent = 'Los cambios de acá no cuentan como venta.' +
+    (reserved > 0 ? ` Hay ${reserved} reservada${reserved === 1 ? '' : 's'}.` : '');
+  openModal('flavor-modal');
+}
+
+$('flavor-minus').addEventListener('click', () => {
+  $('flavor-qty-input').value = Math.max(0, int($('flavor-qty-input').value) - 1);
+});
+$('flavor-plus').addEventListener('click', () => {
+  $('flavor-qty-input').value = Math.max(0, int($('flavor-qty-input').value)) + 1;
+});
+
+$('flavor-save-btn').addEventListener('click', () => {
+  const item = findItem($('flavor-id').value);
+  if (!item) return closeModal('flavor-modal');
+  const name = $('flavor-name-input').value.trim();
+  if (!name) return showToast('El sabor necesita un nombre', 'warn');
+  const clash = stock.find((i) => i !== item && i.model === item.model && i.flavor.toLowerCase() === name.toLowerCase());
+  if (clash) return showToast('Ese sabor ya existe en el modelo', 'warn');
+  item.flavor = name;
+  item.qty = Math.max(0, int($('flavor-qty-input').value));
+  saveStock();
+  sanitize();
+  closeModal('flavor-modal');
+  render();
+  showToast('✅ Stock corregido');
+});
+
+$('flavor-delete-btn').addEventListener('click', () => {
+  const item = findItem($('flavor-id').value);
+  if (!item) return closeModal('flavor-modal');
+  const reserved = reservedQty(item.id);
+  const extra = reserved > 0 ? ` Tiene ${reserved} reservada${reserved === 1 ? '' : 's'}: se quitan de esas reservas.` : '';
+  if (!confirm(`¿Eliminar "${item.flavor}" de ${item.model}?${extra}`)) return;
+  stock = stock.filter((i) => i !== item);
+  saveStock();
+  sanitize();
+  closeModal('flavor-modal');
+  render();
+  showToast('🗑️ Sabor eliminado');
+});
+
+/* ---------------- VENTAS Y NÚMEROS ---------------- */
+function rangeStart(range) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (range === 'today') return d.getTime();
+  if (range === '7') return d.getTime() - 6 * DAY;
+  if (range === '30') return d.getTime() - 29 * DAY;
+  return 0;
+}
+const saleKey = (s) => (s.saleId ? String(s.saleId) : 'u' + s.id);
+const payLabel = (p) => (p === 'efectivo' ? 'Efectivo' : (p === 'transferencia' ? 'Transferencia' : ''));
+
+$('btn-history').addEventListener('click', () => {
+  renderHistory();
+  openModal('history-modal');
+});
+
+$('range-tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-range]');
+  if (!tab) return;
+  historyRange = tab.dataset.range;
+  renderHistory();
+});
+$('view-tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-view]');
+  if (!tab) return;
+  historyView = tab.dataset.view;
+  renderHistory();
+});
+
+$('btn-clear-history').addEventListener('click', () => {
+  if (sales.length === 0) return showToast('El historial ya está vacío');
+  if (!confirm('¿Seguro que querés borrar TODO el historial de ventas? (Tu stock actual queda intacto)')) return;
+  sales = [];
+  saveSales();
+  renderHistory();
+  showToast('🗑️ Historial borrado');
+});
+
+function renderHistory() {
+  const priv = (text) => (isEyeOpen ? text : '•••');
+  document.querySelectorAll('#range-tabs .history-tab').forEach((t) => t.classList.toggle('active', t.dataset.range === historyRange));
+  document.querySelectorAll('#view-tabs .history-tab').forEach((t) => t.classList.toggle('active', t.dataset.view === historyView));
+
+  const from = rangeStart(historyRange);
+  const shown = sales.filter((s) => (s.timestamp || 0) >= from);
+
+  let money$ = 0;
+  let cost$ = 0;
+  const byPay = { efectivo: 0, transferencia: 0, otro: 0 };
+  shown.forEach((s) => {
+    money$ += s.price || 0;
+    cost$ += s.cost || 0;
+    byPay[byPay[s.pay] == null ? 'otro' : s.pay] += s.price || 0;
+  });
+  $('history-qty').textContent = shown.length;
+  $('history-money').textContent = priv(money(money$));
+  $('history-profit').textContent = priv(money(money$ - cost$));
+
+  const payParts = [];
+  if (byPay.efectivo) payParts.push(`💵 Efectivo <b>${priv(money(byPay.efectivo))}</b>`);
+  if (byPay.transferencia) payParts.push(`🏦 Transferencia <b>${priv(money(byPay.transferencia))}</b>`);
+  if (byPay.otro) payParts.push(`Sin dato <b>${priv(money(byPay.otro))}</b>`);
+  $('history-pay').innerHTML = payParts.join(' &nbsp;·&nbsp; ');
+
+  renderLotProgress(priv);
+
+  const list = $('history-list');
+  if (shown.length === 0) {
+    list.innerHTML = '<div class="empty-history">No hay ventas en este período.</div>';
+    return;
+  }
+  list.innerHTML = historyView === 'rank' ? rankingHtml(shown) : salesHtml(shown, priv);
+}
+
+// Cuánto de la última tanda ya se recuperó con ventas
+function renderLotProgress(priv) {
+  const box = $('lot-progress');
+  const lot = lots[lots.length - 1];
+  if (!lot || !(lot.invest > 0)) { box.classList.add('hidden'); return; }
+  const recovered = sales.filter((s) => (s.timestamp || 0) >= lot.timestamp).reduce((sum, s) => sum + (s.price || 0), 0);
+  const pct = Math.min(100, Math.round(recovered / lot.invest * 100));
+  const diff = recovered - lot.invest;
+  const date = new Date(lot.timestamp).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="lot-progress-title"><span>Tanda del ${date} · ${lot.units} u.</span><span>${pct}%</span></div>
+    <div class="lot-bar ${diff >= 0 ? 'done' : ''}"><div style="width:${pct}%"></div></div>
+    Invertiste ${priv(money(lot.invest))} · vendiste ${priv(money(recovered))} desde que entró.
+    ${diff >= 0 ? `Ya recuperaste la inversión (+${priv(money(diff))}).` : `Te faltan ${priv(money(-diff))} para recuperarla.`}`;
+}
+
+function salesHtml(shown, priv) {
+  const groups = new Map();
+  shown.forEach((s) => {
+    const key = saleKey(s);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  const ordered = [...groups.entries()].sort((a, b) => (b[1][0].timestamp || 0) - (a[1][0].timestamp || 0));
+
+  return ordered.map(([key, records]) => {
+    const first = records[0];
+    const total = records.reduce((s, r) => s + (r.price || 0), 0);
+    const list = records.reduce((s, r) => s + (r.listPrice == null ? (r.price || 0) : r.listPrice), 0);
+    const lines = new Map();
+    records.forEach((r) => {
+      const k = `${r.model} · ${r.flavor}`;
+      lines.set(k, (lines.get(k) || 0) + 1);
+    });
+    const d = new Date(first.timestamp);
+    const time = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const when = historyRange === 'today' ? time : d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ' ' + time;
+    const meta = [when, payLabel(first.pay), first.customer, list > total ? `dto. ${money(list - total)}` : '']
+      .filter(Boolean).map(esc).join(' · ');
+    return `
+      <div class="history-item">
+        <div class="history-item-left">
+          ${[...lines.entries()].map(([name, n]) => `<span class="history-item-title">${esc(name)}${n > 1 ? ' ×' + n : ''}</span>`).join('')}
+          <span class="history-item-subtitle">${meta}</span>
+        </div>
+        <div class="history-item-right">
+          <span class="history-item-price">${priv(money(total))}</span>
+          <button class="btn-undo" data-action="undo" data-key="${esc(key)}">Deshacer</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function rankingHtml(shown) {
+  const byFlavor = new Map();
+  const byModel = new Map();
+  shown.forEach((s) => {
+    const k = s.model + '\u0001' + s.flavor;
+    byFlavor.set(k, (byFlavor.get(k) || 0) + 1);
+    byModel.set(s.model, (byModel.get(s.model) || 0) + 1);
+  });
+  const bar = (name, sub, count, max) => `
+    <div class="rank-item">
+      <div class="rank-fill" style="width:${Math.round(count / max * 100)}%"></div>
+      <div class="rank-content">
+        <div class="rank-name"><span>${esc(name)}</span><span>${esc(sub)}</span></div>
+        <span class="rank-count">${count}</span>
+      </div>
+    </div>`;
+
+  const models = [...byModel.entries()].sort((a, b) => b[1] - a[1]);
+  const flavors = [...byFlavor.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const maxModel = models[0][1];
+  const maxFlavor = flavors[0][1];
+
+  let html = '<div class="rank-section">Por modelo</div>';
+  html += models.map(([model, n]) => {
+    const left = modelItems(model).reduce((s, i) => s + i.qty, 0);
+    return bar(model, `Quedan ${left} u.`, n, maxModel);
+  }).join('');
+  html += '<div class="rank-section">Por sabor</div>';
+  html += flavors.map(([k, n]) => {
+    const [model, flavor] = k.split('\u0001');
+    const item = stock.find((i) => i.model === model && i.flavor === flavor);
+    return bar(flavor, `${model} · ${item ? 'quedan ' + item.qty : 'ya no está en stock'}`, n, maxFlavor);
+  }).join('');
+  return html;
+}
+
+$('history-list').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action="undo"]');
+  if (!el) return;
+  const records = sales.filter((s) => saleKey(s) === el.dataset.key);
+  if (records.length === 0) return;
+  if (records.length > 1 && !confirm(`¿Deshacer esta venta de ${records.length} unidades? Vuelven al stock.`)) return;
+
+  records.forEach((sale) => {
+    const item = stock.find((i) => i.model === sale.model && i.flavor === sale.flavor);
+    if (item) {
+      item.qty += 1;
+    } else {
+      stock.push({
+        id: uid(), model: sale.model, flavor: sale.flavor, qty: 1,
+        cost: sale.cost || 0, price: sale.listPrice == null ? (sale.price || 0) : sale.listPrice
+      });
+    }
+  });
+  sales = sales.filter((s) => saleKey(s) !== el.dataset.key);
+  saveStock();
+  saveSales();
+  render();
+  renderHistory();
+  showToast(`↩️ Venta deshecha (+${records.length} al stock)`);
+});
+
+/* ---------------- AJUSTES Y BACKUP ---------------- */
+const CFG_FIELDS = {
+  'cfg-promo': 'promoPair', 'cfg-margin': 'margin', 'cfg-usdt': 'usdt',
+  'cfg-pasero': 'pasero', 'cfg-low': 'lowStock', 'cfg-target': 'targetStock'
+};
+
+$('btn-settings').addEventListener('click', () => {
+  Object.keys(CFG_FIELDS).forEach((id) => { $(id).value = config[CFG_FIELDS[id]] || (id === 'cfg-low' ? 0 : ''); });
+  renderBackupInfo();
+  openModal('settings-modal');
+});
+
+Object.keys(CFG_FIELDS).forEach((id) => {
+  $(id).addEventListener('input', () => {
+    const value = Math.max(0, num($(id).value));
+    config[CFG_FIELDS[id]] = (id === 'cfg-target') ? Math.max(1, Math.round(value)) : value;
+    if (id === 'cfg-margin') $('lot-margin').value = config.margin;
+    saveConfig();
+    render();
+  });
+});
+
+function renderBackupInfo() {
+  const info = $('backup-info');
+  if (!config.lastBackup) {
+    info.textContent = 'Los datos viven solo en este celular. Todavía no descargaste ningún backup.';
+  } else {
+    const days = Math.floor((Date.now() - config.lastBackup) / DAY);
+    info.textContent = 'Los datos viven solo en este celular. Último backup: ' +
+      (days <= 0 ? 'hoy.' : (days === 1 ? 'ayer.' : `hace ${days} días.`));
+  }
+}
+
+$('export-btn').addEventListener('click', () => {
+  config.lastBackup = Date.now();
+  saveConfig();
+  const data = {
+    version: 2, exportedAt: new Date().toISOString(),
+    stock, history: sales, reservations, lots, lotDraft: draft, config
+  };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = url;
+  a.download = `StockVape_Backup_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  closeModal('settings-modal');
+  render();
+  showToast('💾 Backup descargado');
+});
+
+$('import-file').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const newStock = Array.isArray(data) ? data : data.stock;
+      if (!Array.isArray(newStock)) throw new Error('formato');
+      if (!confirm('Esto reemplaza todo lo que hay cargado ahora por el contenido del backup. ¿Seguir?')) return;
+
+      store(K.stock, newStock);
+      store(K.sales, Array.isArray(data.history) ? data.history : []);
+      store(K.res, Array.isArray(data.reservations) ? data.reservations : []);
+      store(K.lots, Array.isArray(data.lots) ? data.lots : []);
+      if (data.config) store(K.config, Object.assign({}, DEFAULT_CONFIG, data.config));
+      if (data.lotDraft && Array.isArray(data.lotDraft.lines)) {
+        store(K.draft, data.lotDraft);
+      } else {
+        localStorage.removeItem(K.draft);
+        if (Array.isArray(data.planner)) store('vapePlanner', data.planner);
+      }
+      localStorage.removeItem(K.cart);
+      location.reload();
+    } catch (error) {
+      alert('No pude leer ese archivo. ¿Es un backup de StockVape?');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+});
+
+/* ---------------- COPIAR ---------------- */
+function groupByModel(items) {
+  const grouped = {};
+  items.forEach((i) => {
+    if (!grouped[i.model]) grouped[i.model] = [];
+    grouped[i.model].push(i);
+  });
+  return grouped;
+}
+
+$('btn-open-copy').addEventListener('click', () => {
+  if (stock.length === 0) return showToast('❌ No hay stock cargado', 'warn');
+  openModal('copy-modal');
+});
+
+function copyStock(withPrice) {
+  const available = stock.filter((i) => freeQty(i) > 0);
+  if (available.length === 0) return showToast('❌ No hay stock libre', 'warn');
+  const grouped = groupByModel(available);
+  let text = '🔥 *STOCK DISPONIBLE* 🔥\n\n';
+  Object.keys(grouped).forEach((model) => {
+    const price = modelPrice(model);
+    text += `📌 *${model}*${withPrice && price > 0 ? ` (${money(price)})` : ''}\n`;
+    grouped[model].forEach((f) => { text += `  • ${f.flavor}: ${freeQty(f)} u.\n`; });
+    text += '\n';
+  });
+  if (withPrice && config.promoPair > 0) text += `🎁 Llevando 2 tenés ${money(config.promoPair)} de descuento (podés mezclar modelos).\n`;
+  closeModal('copy-modal');
+  copyText(text, '✅ Copiado al portapapeles');
+}
+$('copy-simple-btn').addEventListener('click', () => copyStock(false));
+$('copy-price-btn').addEventListener('click', () => copyStock(true));
+
+$('copy-order-btn').addEventListener('click', () => {
+  const low = stock.filter((i) => freeQty(i) <= config.lowStock && config.targetStock - freeQty(i) > 0);
+  closeModal('copy-modal');
+  if (low.length === 0) return showToast('✅ ¡Tenés buen stock de todo!');
+  const grouped = groupByModel(low);
+  let text = '📦 *PEDIDO DE REPOSICIÓN* 📦\n\nHola, necesito reponer lo siguiente:\n\n';
+  Object.keys(grouped).forEach((model) => {
+    text += `📌 *${model}*\n`;
+    grouped[model].forEach((f) => { text += `  • ${f.flavor} (x${config.targetStock - freeQty(f)} u.)\n`; });
+    text += '\n';
+  });
+  copyText(text, '✅ Pedido copiado (¡pegalo en WhatsApp!)');
+});
+
+/* ---------------- PANTALLA PRINCIPAL ---------------- */
+$('btn-toggle-eye').addEventListener('click', () => {
+  isEyeOpen = !isEyeOpen;
+  localStorage.setItem(K.eye, isEyeOpen);
+  render();
+});
+
+document.querySelectorAll('.filter-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach((c) => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.filter;
+    render();
+  });
+});
+searchInput.addEventListener('input', render);
+
+stockContainer.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const { action, id, model } = el.dataset;
+  if (action === 'cart-add') changeCart(id, 1);
+  else if (action === 'cart-sub') changeCart(id, -1);
+  else if (action === 'flavor-open') openFlavor(id);
+  else if (action === 'edit-model') openEditModel(model);
+  else if (action === 'delete-model') deleteModel(model);
+  else if (action === 'toggle-model') {
+    if (collapsed.has(model)) collapsed.delete(model); else collapsed.add(model);
+    store(K.collapsed, [...collapsed]);
+    render();
+  }
+});
+
+function render() {
+  const priv = (text) => (isEyeOpen ? text : '•••');
+  $('btn-toggle-eye').innerHTML = isEyeOpen ? iconEyeOpen : iconEyeClosed;
+  $('chip-low').textContent = `⚠️ Poco stock (≤ ${config.lowStock})`;
+
+  // Resumen
+  let totalQty = 0;
+  let totalMoney = 0;
+  let totalCost = 0;
+  stock.forEach((i) => {
+    totalQty += i.qty;
+    totalMoney += i.qty * (i.price || 0);
+    totalCost += i.qty * (i.cost || 0);
+  });
+  const totalReserved = reservations.reduce((s, r) => s + r.items.reduce((a, it) => a + it.qty, 0), 0);
+  $('total-qty').textContent = totalQty + ' u.';
+  $('total-reserved').textContent = totalReserved > 0 ? `${totalReserved} reservada${totalReserved === 1 ? '' : 's'}` : '';
+  $('total-money').textContent = priv(money(totalMoney));
+  $('total-profit').textContent = priv(money(totalMoney - totalCost));
+
+  const resCount = $('reservas-count');
+  resCount.textContent = reservations.length;
+  resCount.classList.toggle('hidden', reservations.length === 0);
+  $('backup-dot').classList.toggle('hidden', !(stock.length > 0 && Date.now() - (config.lastBackup || 0) > 7 * DAY));
+
+  // Lista
+  const query = searchInput.value.trim().toLowerCase();
+  const forcedOpen = query.length > 0 || currentFilter !== 'all';
+  const filtered = stock.filter((i) => {
+    if (query && !(i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query))) return false;
+    const free = freeQty(i);
+    if (currentFilter === 'low') return free > 0 && free <= config.lowStock;
+    if (currentFilter === 'out') return free === 0;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    stockContainer.innerHTML = `<div class="empty-state">${stock.length === 0
+      ? 'Todavía no hay stock cargado.<br>Tocá <b>Ingresar tanda</b> para cargarlo.'
+      : 'No hay nada que coincida con la búsqueda o el filtro.'}</div>`;
+  } else {
+    const grouped = groupByModel(filtered);
+    stockContainer.innerHTML = Object.keys(grouped).map((model) => {
+      const isCollapsed = !forcedOpen && collapsed.has(model);
+      const price = modelPrice(model);
+      const cost = modelCost(model);
+      const units = modelItems(model).reduce((s, i) => s + i.qty, 0);
+
+      let badges = `<span class="model-badge units">${units} u.</span>`;
+      if (isEyeOpen && price > 0) {
+        badges += `<span class="model-badge price">Venta ${money(price)}</span>`;
+        if (cost > 0 && price - cost > 0) badges += `<span class="model-badge profit">Limpio ${money(price - cost)}</span>`;
+      }
+
+      const rows = grouped[model].map((item) => {
+        const reserved = reservedQty(item.id);
+        const free = Math.max(0, item.qty - reserved);
+        const inCart = cartQty(item.id);
+
+        let badge = '';
+        if (item.qty === 0) badge = '<span class="badge badge-danger">Agotado</span>';
+        else if (free === 0) badge = '<span class="badge badge-reserve">Todo reservado</span>';
+        else if (reserved > 0) badge = `<span class="badge badge-reserve">${reserved} reservada${reserved === 1 ? '' : 's'} · ${free} libre${free === 1 ? '' : 's'}</span>`;
+        else if (free === 1) badge = '<span class="badge badge-warning">Última</span>';
+        const isLow = free > 0 && free <= config.lowStock;
+
+        const control = inCart > 0
+          ? `<div class="controls in-cart">
+               <button class="btn-qty" data-action="cart-sub" data-id="${esc(item.id)}" aria-label="Quitar de la venta">−</button>
+               <span class="qty-number">${inCart}</span>
+               <button class="btn-qty" data-action="cart-add" data-id="${esc(item.id)}" aria-label="Sumar a la venta">+</button>
+             </div>`
+          : `<button class="btn-add" data-action="cart-add" data-id="${esc(item.id)}" aria-label="Sumar a la venta" ${maxForCart(item) === 0 ? 'disabled' : ''}>+</button>`;
+
+        return `
+          <div class="flavor-row ${free === 0 ? 'out-of-stock' : ''}">
+            <button class="flavor-main" data-action="flavor-open" data-id="${esc(item.id)}">
+              <span class="flavor-name">${esc(item.flavor)}</span>
+              <span class="flavor-meta"><span class="stock-pill ${isLow ? 'low' : ''}">${item.qty} u.</span>${badge}</span>
+            </button>
+            ${control}
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="model-card">
+          <div class="model-title" data-action="toggle-model" data-model="${esc(model)}">
+            <div class="model-title-left">
+              <span class="model-title-text">${esc(model)}</span>
+              <div class="model-badges">${badges}</div>
+            </div>
+            <div class="model-title-right">
+              <button class="icon-btn" data-action="edit-model" data-model="${esc(model)}" aria-label="Editar modelo">${iconEdit}</button>
+              <button class="icon-btn" data-action="delete-model" data-model="${esc(model)}" aria-label="Eliminar modelo">${iconTrash}</button>
+              ${iconChevron(isCollapsed)}
+            </div>
+          </div>
+          <div class="model-flavors ${isCollapsed ? 'hidden' : ''}">${rows}</div>
+        </div>`;
+    }).join('');
+  }
+
+  renderCartBar();
+}
+
+function syncHeaderHeight() {
+  const header = document.querySelector('.app-header');
+  if (header && header.offsetHeight) {
+    document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+  }
+}
+window.addEventListener('resize', syncHeaderHeight);
+
+/* ---------------- ARRANQUE ---------------- */
+saveStock();
+saveConfig();
+saveDraft();
+sanitize();
+syncHeaderHeight();
+render();
+  </script>
 </body>
 </html>
