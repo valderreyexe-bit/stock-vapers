@@ -1,666 +1,1343 @@
+'use strict';
+
+/* =========================================================
+   StockVape — stock, tandas, ventas y reservas
+   Todo se guarda en el navegador (localStorage).
+   ========================================================= */
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
 }
 
-let stock = JSON.parse(localStorage.getItem('vapeStock')) || [];
-let salesHistory = JSON.parse(localStorage.getItem('vapeSales')) || [];
-let plannedPurchases = JSON.parse(localStorage.getItem('vapePlanner')) || []; 
-let currentFilter = 'all'; 
+/* ---------------- UTILIDADES ---------------- */
+const $ = (id) => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const num = (v) => {
+  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  return isFinite(n) ? n : 0;
+};
+const int = (v) => Math.round(num(v));
+const money = (n) => '$' + Math.round(n || 0).toLocaleString('es-AR');
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+const sameId = (a, b) => String(a) === String(b);
+const dayKey = (ts) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+const DAY = 86400000;
 
-let isEyeOpen = localStorage.getItem('vapeEye') !== 'false';
-let savedPasero = localStorage.getItem('vapePasero') || '15';
-let savedUsdt = localStorage.getItem('vapeUsdt') || '1586';
+function load(key, fallback) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return v == null ? fallback : v;
+  } catch (e) {
+    return fallback;
+  }
+}
+function store(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    alert('No se pudo guardar. Revisá el espacio libre del celular.');
+  }
+}
 
-const iconTrash = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`;
-const iconEdit = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-const iconChevron = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-const iconDeleteFlavor = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
-const iconEyeOpen = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
-const iconEyeClosed = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+/* ---------------- ESTADO ---------------- */
+const K = {
+  stock: 'vapeStock', sales: 'vapeSales', res: 'vapeReservations', lots: 'vapeLots',
+  draft: 'vapeLotDraft', cart: 'vapeCart', config: 'vapeConfig', eye: 'vapeEye',
+  collapsed: 'vapeCollapsed'
+};
 
-const stockContainer = document.getElementById('stock-container');
-const searchInput = document.getElementById('search-input');
-const toastContainer = document.getElementById('toast-container');
-const addModal = document.getElementById('add-modal');
-const copyModal = document.getElementById('copy-modal');
-const editModal = document.getElementById('edit-modal');
-const settingsModal = document.getElementById('settings-modal');
-const historyModal = document.getElementById('history-modal');
-const plannerModal = document.getElementById('planner-modal');
+const DEFAULT_CONFIG = {
+  usdt: 1586,      // cotización USDT en pesos
+  pasero: 15,      // % que cobra el pasero sobre la compra
+  margin: 60,      // % de margen para sugerir el precio de venta
+  promoPair: 0,    // descuento en pesos por cada 2 unidades de una venta
+  lowStock: 2,     // aviso de poco stock
+  targetStock: 10, // hasta cuántas unidades reponer
+  lastBackup: 0
+};
 
-const modelInput = document.getElementById('model-input');
-const costInput = document.getElementById('cost-input');
-const priceInput = document.getElementById('price-input');
-const flavorInput = document.getElementById('flavor-input');
-const qtyInput = document.getElementById('qty-input');
+let stock = load(K.stock, []);
+let sales = load(K.sales, []);
+let reservations = load(K.res, []);
+let lots = load(K.lots, []);
+let config = Object.assign({}, DEFAULT_CONFIG, load(K.config, {}));
+let draft = load(K.draft, null);
+let cart = load(K.cart, null);
+let isEyeOpen = localStorage.getItem(K.eye) !== 'false';
+let collapsed = new Set(load(K.collapsed, []));
+let currentFilter = 'all';
+let historyRange = 'today';
+let historyView = 'sales';
+let lotPriceTouched = false;
 
-document.getElementById('btn-toggle-eye').addEventListener('click', () => {
-  isEyeOpen = !isEyeOpen;
-  localStorage.setItem('vapeEye', isEyeOpen);
-  render();
-  renderHistory();
-});
+/* --- Migración desde la versión anterior --- */
+(function migrate() {
+  if (!Array.isArray(stock)) stock = [];
+  if (!Array.isArray(sales)) sales = [];
+  if (!Array.isArray(reservations)) reservations = [];
+  if (!Array.isArray(lots)) lots = [];
 
-function saveStock() { localStorage.setItem('vapeStock', JSON.stringify(stock)); render(); }
-function saveHistory() { localStorage.setItem('vapeSales', JSON.stringify(salesHistory)); }
-function savePlanner() { localStorage.setItem('vapePlanner', JSON.stringify(plannedPurchases)); }
+  stock = stock.filter((i) => i && i.model && i.flavor != null).map((i) => Object.assign({}, i, {
+    id: i.id == null ? uid() : i.id,
+    model: String(i.model),
+    flavor: String(i.flavor),
+    qty: Math.max(0, parseInt(i.qty, 10) || 0),
+    cost: num(i.cost),
+    price: num(i.price)
+  }));
 
-function showToast(message) {
+  // Cotización y pasero que usaba el simulador viejo
+  if (localStorage.getItem(K.config) === null) {
+    const oldPasero = parseFloat(localStorage.getItem('vapePasero'));
+    const oldUsdt = parseFloat(localStorage.getItem('vapeUsdt'));
+    if (isFinite(oldPasero)) config.pasero = oldPasero;
+    if (isFinite(oldUsdt) && oldUsdt > 0) config.usdt = oldUsdt;
+  }
+
+  // Lo que estaba en "Futuras compras" pasa a ser la tanda en borrador
+  if (!draft || !Array.isArray(draft.lines)) {
+    draft = { freight: 0, lines: [] };
+    const oldPlanner = load('vapePlanner', []);
+    if (Array.isArray(oldPlanner)) {
+      oldPlanner.forEach((p) => {
+        if (!p || !p.name) return;
+        draft.lines.push({
+          id: uid(),
+          model: String(p.name).trim().toUpperCase(),
+          usd: num(p.usd),
+          price: num(p.price),
+          variants: [{ flavor: 'Único', qty: Math.max(1, parseInt(p.qty, 10) || 1) }]
+        });
+      });
+    }
+  }
+
+  if (!cart || !Array.isArray(cart.items)) cart = emptyCart();
+})();
+
+function emptyCart() {
+  return { items: [], resId: null, pay: 'efectivo', customer: '', customTotal: null };
+}
+
+const saveStock = () => store(K.stock, stock);
+const saveSales = () => store(K.sales, sales);
+const saveRes = () => store(K.res, reservations);
+const saveLots = () => store(K.lots, lots);
+const saveDraft = () => store(K.draft, draft);
+const saveCart = () => store(K.cart, cart);
+const saveConfig = () => store(K.config, config);
+
+/* ---------------- ICONOS ---------------- */
+const iconTrash = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>';
+const iconEdit = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+const iconChevron = (isCollapsed) => `<svg class="arrow ${isCollapsed ? 'collapsed' : ''}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+const iconEyeOpen = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+const iconEyeClosed = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+
+/* ---------------- AVISOS Y MODALES ---------------- */
+const stockContainer = $('stock-container');
+const searchInput = $('search-input');
+
+function showToast(message, type) {
   const toast = document.createElement('div');
-  toast.className = 'toast';
+  toast.className = 'toast' + (type === 'warn' ? ' warn' : '');
   toast.textContent = message;
-  toastContainer.appendChild(toast);
-  setTimeout(() => toast.remove(), 2500);
+  const box = $('toast-container');
+  while (box.children.length >= 2) box.firstChild.remove();
+  box.appendChild(toast);
+  setTimeout(() => toast.remove(), 2700);
 }
 
-// ---------------- 🛒 SIMULADOR INTELIGENTE ----------------
-document.getElementById('btn-planner').addEventListener('click', () => {
-  document.getElementById('plan-pasero').value = savedPasero;
-  document.getElementById('plan-usdt').value = savedUsdt;
-  renderPlanner();
-  updatePlanSuggestion();
-  plannerModal.classList.remove('hidden');
-});
-document.getElementById('close-planner-btn').addEventListener('click', () => plannerModal.classList.add('hidden'));
+function openModal(id) {
+  $(id).classList.remove('hidden');
+  document.documentElement.classList.add('modal-open');
+}
+function closeModal(id) {
+  $(id).classList.add('hidden');
+  if (!document.querySelector('.modal:not(.hidden)')) {
+    document.documentElement.classList.remove('modal-open');
+  }
+}
+const isOpen = (id) => !$(id).classList.contains('hidden');
 
-// Magia: Cada vez que tocas un número, calcula el precio sugerido
-['plan-usd', 'plan-margin', 'plan-pasero', 'plan-usdt'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    renderPlanner(); // Actualiza la lista si cambiás el USDT/Pasero
-    updatePlanSuggestion(); // Actualiza la caja de sugerencia
+document.querySelectorAll('.modal').forEach((modal) => {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.closest('[data-close]')) closeModal(modal.id);
   });
 });
 
-function updatePlanSuggestion() {
-  const usd = parseFloat(document.getElementById('plan-usd').value) || 0;
-  const pasero = parseFloat(document.getElementById('plan-pasero').value) || 0;
-  const usdt = parseFloat(document.getElementById('plan-usdt').value) || 0;
-  const margin = parseFloat(document.getElementById('plan-margin').value) || 0;
-
-  if (usd === 0) {
-    document.getElementById('plan-live-cost').textContent = '$0';
-    document.getElementById('plan-price').value = '';
-    return;
+function copyText(text, okMessage) {
+  const legacy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+  };
+  const done = () => showToast(okMessage);
+  const fail = () => alert('No se pudo copiar.');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(() => (legacy() ? done() : fail()));
+  } else if (legacy()) {
+    done();
+  } else {
+    fail();
   }
-
-  // 1. Calcula el costo real en ARS
-  const unitCostUsdt = usd * (1 + (pasero / 100));
-  const costArs = unitCostUsdt * usdt;
-  document.getElementById('plan-live-cost').textContent = '$' + Math.round(costArs).toLocaleString('es-AR');
-
-  // 2. Calcula el precio sugerido y lo redondea a los cien pesos más cercanos
-  const suggested = costArs * (1 + (margin / 100));
-  const roundedSuggested = Math.round(suggested / 100) * 100;
-  
-  document.getElementById('plan-price').value = roundedSuggested;
 }
 
-document.getElementById('btn-add-plan').addEventListener('click', () => {
-  const name = document.getElementById('plan-name').value.trim();
-  const usd = parseFloat(document.getElementById('plan-usd').value) || 0;
-  const price = parseFloat(document.getElementById('plan-price').value) || 0;
-  const qty = parseInt(document.getElementById('plan-qty').value) || 1;
+/* ---------------- STOCK: CONSULTAS ---------------- */
+const findItem = (id) => stock.find((i) => sameId(i.id, id));
+const modelItems = (model) => stock.filter((i) => i.model === model);
+const modelCost = (model) => modelItems(model).reduce((m, i) => Math.max(m, i.cost || 0), 0);
+const modelPrice = (model) => modelItems(model).reduce((m, i) => Math.max(m, i.price || 0), 0);
 
-  if (!name || usd === 0 || price === 0) return alert('Por favor, llená todos los datos.');
-
-  plannedPurchases.push({ id: Date.now(), name, usd, price, qty });
-  savePlanner();
-  
-  document.getElementById('plan-name').value = '';
-  document.getElementById('plan-usd').value = '';
-  document.getElementById('plan-price').value = '';
-  document.getElementById('plan-qty').value = '1';
-  document.getElementById('plan-live-cost').textContent = '$0';
-  
-  renderPlanner();
-  showToast('✅ Producto añadido al simulador');
-});
-
-window.deletePlan = function(id) {
-  plannedPurchases = plannedPurchases.filter(p => p.id !== id);
-  savePlanner();
-  renderPlanner();
+// Unidades apartadas en reservas (se puede excluir una reserva puntual)
+function reservedQty(stockId, exceptResId) {
+  let total = 0;
+  reservations.forEach((r) => {
+    if (exceptResId && r.id === exceptResId) return;
+    r.items.forEach((it) => { if (sameId(it.stockId, stockId)) total += it.qty; });
+  });
+  return total;
+}
+// Unidades libres para vender a cualquiera
+const freeQty = (item) => Math.max(0, item.qty - reservedQty(item.id));
+// Tope para la venta en curso (si es la entrega de una reserva, sus unidades cuentan)
+const maxForCart = (item) => Math.max(0, item.qty - reservedQty(item.id, cart.resId));
+const cartQty = (stockId) => {
+  const ci = cart.items.find((c) => sameId(c.stockId, stockId));
+  return ci ? ci.qty : 0;
 };
 
-function renderPlanner() {
-  const pasero = parseFloat(document.getElementById('plan-pasero').value) || 0;
-  const usdt = parseFloat(document.getElementById('plan-usdt').value) || 0;
-  
-  localStorage.setItem('vapePasero', pasero);
-  localStorage.setItem('vapeUsdt', usdt);
-  savedPasero = pasero;
-  savedUsdt = usdt;
-
-  const listContainer = document.getElementById('planner-list');
-  listContainer.innerHTML = '';
-
-  let totalInvest = 0;
-  let totalProfit = 0;
-
-  if (plannedPurchases.length === 0) {
-    listContainer.innerHTML = '<div class="empty-history" style="margin-top: 20px;">No agregaste ningún producto a tu futura compra.</div>';
-  } else {
-    plannedPurchases.forEach(item => {
-      const unitCostUsdt = item.usd * (1 + (pasero / 100));
-      const unitCostArs = unitCostUsdt * usdt;
-      const unitProfit = item.price - unitCostArs;
-      
-      const itemInvest = unitCostArs * item.qty;
-      const itemProfit = unitProfit * item.qty;
-
-      totalInvest += itemInvest;
-      totalProfit += itemProfit;
-
-      const div = document.createElement('div');
-      div.className = 'planner-item';
-      div.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: 700; font-size: 15px; color: white;">${item.name} <span style="color: var(--text-muted); font-size: 12px; margin-left: 4px;">x${item.qty} u.</span></span>
-          <button class="icon-btn-small" style="color: var(--danger);" onclick="deletePlan(${item.id})">${iconTrash}</button>
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <span>Costo: <b style="color: white;">$${Math.round(unitCostArs).toLocaleString('es-AR')}</b></span>
-          <span>Venta: <b style="color: white;">$${item.price.toLocaleString('es-AR')}</b></span>
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px;">
-          <span style="color: white;">Inversión: $${Math.round(itemInvest).toLocaleString('es-AR')}</span>
-          <span style="color: var(--warning); font-weight: 700;">Ganancia: $${Math.round(itemProfit).toLocaleString('es-AR')}</span>
-        </div>
-      `;
-      listContainer.appendChild(div);
-    });
-  }
-
-  document.getElementById('plan-total-invest').textContent = `$${Math.round(totalInvest).toLocaleString('es-AR')}`;
-  document.getElementById('plan-total-profit').textContent = `$${Math.round(totalProfit).toLocaleString('es-AR')}`;
+/* ---------------- VENTA EN CURSO ---------------- */
+function cartTotals(c) {
+  c = c || cart;
+  const rows = [];
+  let units = 0;
+  let subtotal = 0;
+  c.items.forEach((ci) => {
+    const it = findItem(ci.stockId);
+    if (!it) return;
+    rows.push({ it, qty: ci.qty });
+    units += ci.qty;
+    subtotal += ci.qty * (it.price || 0);
+  });
+  const pairs = Math.floor(units / 2);
+  const promo = Math.min(subtotal, pairs * (config.promoPair || 0));
+  const auto = subtotal - promo;
+  const isManual = c.customTotal != null;
+  return { rows, units, subtotal, pairs, promo, auto, isManual, total: isManual ? c.customTotal : auto };
 }
 
-// ---------------- RESTO DE LA APP ----------------
-document.querySelectorAll('.filter-chip').forEach(chip => {
-  chip.addEventListener('click', (e) => {
-    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-    e.target.classList.add('active');
-    currentFilter = e.target.dataset.filter;
+function resetCart() {
+  cart = emptyCart();
+  saveCart();
+}
+
+function changeCart(stockId, delta) {
+  const it = findItem(stockId);
+  if (!it) return;
+  const max = maxForCart(it);
+  const next = cartQty(stockId) + delta;
+  if (delta > 0 && next > max) {
+    showToast(max === 0 ? 'No quedan unidades libres' : `Solo hay ${max} libre${max === 1 ? '' : 's'}`, 'warn');
+    return;
+  }
+  const existing = cart.items.find((c) => sameId(c.stockId, stockId));
+  if (next <= 0) cart.items = cart.items.filter((c) => !sameId(c.stockId, stockId));
+  else if (existing) existing.qty = next;
+  else cart.items.push({ stockId: String(stockId), qty: next });
+
+  cart.customTotal = null;
+  if (cart.items.length === 0) resetCart(); else saveCart();
+  render();
+  if (isOpen('checkout-modal')) renderCheckout();
+}
+
+// Limpia la venta y las reservas si se borró o ajustó stock
+function sanitize() {
+  reservations.forEach((r) => { r.items = r.items.filter((it) => findItem(it.stockId)); });
+  reservations = reservations.filter((r) => r.items.length > 0);
+  if (cart.resId && !reservations.some((r) => r.id === cart.resId)) cart.resId = null;
+  cart.items = cart.items
+    .filter((c) => findItem(c.stockId))
+    .map((c) => ({ stockId: c.stockId, qty: Math.min(c.qty, maxForCart(findItem(c.stockId))) }))
+    .filter((c) => c.qty > 0);
+  if (cart.items.length === 0) cart = emptyCart();
+  saveRes();
+  saveCart();
+}
+
+function renderCartBar() {
+  const t = cartTotals();
+  const has = t.units > 0;
+  $('cart-bar').classList.toggle('hidden', !has);
+  document.body.classList.toggle('has-cart', has);
+  if (!has) return;
+  const res = cart.resId ? reservations.find((r) => r.id === cart.resId) : null;
+  $('cart-bar-units').textContent = `${t.units} u.` + (res ? ` · reserva de ${res.name}` : (t.promo > 0 ? ' · con promo' : ''));
+  $('cart-bar-total').textContent = money(t.total);
+}
+
+$('cart-clear').addEventListener('click', () => {
+  resetCart();
+  render();
+});
+$('cart-open').addEventListener('click', openCheckout);
+
+function openCheckout() {
+  if (cartTotals().units === 0) return;
+  $('co-customer').value = cart.customer || '';
+  renderCheckout();
+  openModal('checkout-modal');
+}
+
+function renderCheckout() {
+  const t = cartTotals();
+  if (t.units === 0) { closeModal('checkout-modal'); return; }
+  const res = cart.resId ? reservations.find((r) => r.id === cart.resId) : null;
+
+  $('checkout-title').textContent = res ? `🧾 Entrega · ${res.name}` : '🧾 Venta';
+  $('checkout-items').innerHTML = t.rows.map(({ it, qty }) => `
+    <div class="co-item">
+      <div class="co-item-info">
+        <span class="co-item-name">${esc(it.flavor)}</span>
+        <span class="co-item-sub">${esc(it.model)} · ${money(it.price)} c/u</span>
+      </div>
+      <div class="controls in-cart">
+        <button class="btn-qty" data-action="cart-sub" data-id="${esc(it.id)}">−</button>
+        <span class="qty-number">${qty}</span>
+        <button class="btn-qty" data-action="cart-add" data-id="${esc(it.id)}">+</button>
+      </div>
+    </div>`).join('');
+
+  $('co-subtotal').textContent = money(t.subtotal);
+  $('co-promo-row').classList.toggle('hidden', t.promo === 0);
+  $('co-promo-label').textContent = `Promo por par (${t.pairs} par${t.pairs === 1 ? '' : 'es'})`;
+  $('co-promo').textContent = '-' + money(t.promo);
+  $('co-promo-hint').classList.toggle('hidden', !(t.units >= 2 && !config.promoPair));
+  $('co-total').value = Math.round(t.total);
+
+  document.querySelectorAll('.pay-chip').forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.pay === cart.pay);
+  });
+  $('save-res-btn').textContent = res ? '🔖 Guardar cambios en la reserva' : '🔖 Guardar como reserva';
+  updateCheckoutTotalUI();
+}
+
+function updateCheckoutTotalUI() {
+  const t = cartTotals();
+  $('co-manual-note').classList.toggle('hidden', !t.isManual);
+  $('confirm-sale-btn').textContent = `Confirmar venta · ${money(t.total)}`;
+  renderCartBar();
+}
+
+$('checkout-items').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  changeCart(el.dataset.id, el.dataset.action === 'cart-add' ? 1 : -1);
+});
+
+$('co-total').addEventListener('input', () => {
+  const value = $('co-total').value.trim();
+  const auto = cartTotals(Object.assign({}, cart, { customTotal: null })).auto;
+  cart.customTotal = (value === '' || int(value) === Math.round(auto)) ? null : Math.max(0, int(value));
+  saveCart();
+  updateCheckoutTotalUI();
+});
+$('co-reset-total').addEventListener('click', () => {
+  cart.customTotal = null;
+  saveCart();
+  renderCheckout();
+});
+$('co-customer').addEventListener('input', () => {
+  cart.customer = $('co-customer').value;
+  saveCart();
+});
+document.querySelectorAll('.pay-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    cart.pay = chip.dataset.pay;
+    saveCart();
+    renderCheckout();
+  });
+});
+
+$('confirm-sale-btn').addEventListener('click', () => {
+  const t = cartTotals();
+  if (t.units === 0) return;
+
+  // Una línea de historial por unidad, repartiendo el total cobrado
+  const units = [];
+  t.rows.forEach(({ it, qty }) => { for (let k = 0; k < qty; k++) units.push(it); });
+  const now = Date.now();
+  const saleId = uid();
+  const total = Math.round(t.total);
+  let remaining = total;
+  units.forEach((it, idx) => {
+    let net;
+    if (idx === units.length - 1) net = remaining;
+    else if (t.subtotal > 0) net = Math.round(total * (it.price || 0) / t.subtotal);
+    else net = Math.round(total / units.length);
+    remaining -= net;
+    sales.push({
+      id: uid(), saleId, timestamp: now, dateStr: dayKey(now),
+      model: it.model, flavor: it.flavor,
+      cost: it.cost || 0, price: net, listPrice: it.price || 0,
+      pay: cart.pay, customer: (cart.customer || '').trim()
+    });
+  });
+  t.rows.forEach(({ it, qty }) => { it.qty = Math.max(0, it.qty - qty); });
+  if (cart.resId) reservations = reservations.filter((r) => r.id !== cart.resId);
+
+  saveStock();
+  saveSales();
+  saveRes();
+  resetCart();
+  closeModal('checkout-modal');
+  render();
+  showToast(`✅ Venta registrada · ${money(total)}`);
+});
+
+/* ---------------- RESERVAS ---------------- */
+$('save-res-btn').addEventListener('click', () => {
+  const t = cartTotals();
+  if (t.units === 0) return;
+  const name = (cart.customer || '').trim();
+  if (!name) {
+    showToast('Poné el nombre del cliente para reservar', 'warn');
+    $('co-customer').focus();
+    return;
+  }
+  const items = cart.items.map((c) => ({ stockId: c.stockId, qty: c.qty }));
+  const existing = cart.resId ? reservations.find((r) => r.id === cart.resId) : null;
+  if (existing) {
+    existing.name = name;
+    existing.items = items;
+    existing.customTotal = cart.customTotal;
+  } else {
+    reservations.push({ id: uid(), name, createdAt: Date.now(), items, customTotal: cart.customTotal });
+  }
+  saveRes();
+  resetCart();
+  closeModal('checkout-modal');
+  render();
+  showToast(`🔖 Reservado para ${name}`);
+});
+
+$('btn-reservas').addEventListener('click', () => {
+  renderReservas();
+  openModal('reservas-modal');
+});
+
+function reservationText(r) {
+  const t = cartTotals({ items: r.items, customTotal: r.customTotal == null ? null : r.customTotal });
+  let text = `Hola ${r.name}! 👋 Te dejo reservado:\n\n`;
+  t.rows.forEach(({ it, qty }) => { text += `• ${it.model} – ${it.flavor} x${qty}\n`; });
+  if (t.promo > 0 && !t.isManual) text += `\nPromo por par: -${money(t.promo)}`;
+  text += `\n*Total: ${money(t.total)}*\nPodés pagar en efectivo o por transferencia. Avisame cuándo lo pasás a buscar 🙌`;
+  return text;
+}
+
+function renderReservas() {
+  const list = $('reservas-list');
+  if (reservations.length === 0) {
+    list.innerHTML = '<div class="empty-history">No hay reservas activas.<br>Armá la venta, poné el nombre del cliente y tocá “Guardar como reserva”.</div>';
+    return;
+  }
+  list.innerHTML = reservations.slice().sort((a, b) => b.createdAt - a.createdAt).map((r) => {
+    const t = cartTotals({ items: r.items, customTotal: r.customTotal == null ? null : r.customTotal });
+    const days = Math.floor((Date.now() - r.createdAt) / DAY);
+    const age = days <= 0 ? 'Hoy' : (days === 1 ? 'Ayer' : `Hace ${days} días`);
+    return `
+      <div class="res-card">
+        <div class="res-head">
+          <span class="res-name">${esc(r.name)}</span>
+          <span class="res-age ${days >= 3 ? 'old' : ''}">${age}</span>
+        </div>
+        <div class="res-items">${t.rows.map(({ it, qty }) => `${esc(it.model)} · ${esc(it.flavor)} ×${qty}`).join('<br>')}</div>
+        <span class="res-total">${t.units} u. · ${money(t.total)}</span>
+        <div class="res-actions">
+          <button class="res-deliver" data-action="res-deliver" data-id="${esc(r.id)}">Entregar</button>
+          <button class="res-copy" data-action="res-copy" data-id="${esc(r.id)}">Copiar mensaje</button>
+          <button class="res-cancel" data-action="res-cancel" data-id="${esc(r.id)}">Cancelar</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+$('reservas-list').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const r = reservations.find((x) => x.id === el.dataset.id);
+  if (!r) return;
+
+  if (el.dataset.action === 'res-copy') {
+    copyText(reservationText(r), '✅ Mensaje copiado');
+  } else if (el.dataset.action === 'res-cancel') {
+    if (!confirm(`¿Cancelar la reserva de ${r.name}? Las unidades vuelven a quedar libres.`)) return;
+    reservations = reservations.filter((x) => x.id !== r.id);
+    if (cart.resId === r.id) resetCart();
+    saveRes();
+    render();
+    renderReservas();
+    showToast('Reserva cancelada');
+  } else if (el.dataset.action === 'res-deliver') {
+    if (cart.items.length > 0 && cart.resId !== r.id &&
+        !confirm('Tenés una venta en curso. ¿La descartás para entregar esta reserva?')) return;
+    cart = {
+      items: r.items.map((it) => ({ stockId: String(it.stockId), qty: it.qty })),
+      resId: r.id, pay: 'efectivo', customer: r.name,
+      customTotal: r.customTotal == null ? null : r.customTotal
+    };
+    sanitize();
+    closeModal('reservas-modal');
+    render();
+    openCheckout();
+  }
+});
+
+/* ---------------- INGRESO DE TANDA ---------------- */
+// Entiende "Menta x3", "Menta (3)", "Menta: 3", "Menta 3u", "3 Menta", "3x Menta"
+function parseFlavorLine(raw, defaultQty) {
+  let s = String(raw).replace(/^[\s\-–•*·▪◦]+/, '').replace(/^\d+[.)]\s+/, '').trim();
+  if (!s) return null;
+  let qty = null;
+  const tryMatch = (re) => {
+    const m = s.match(re);
+    if (!m) return false;
+    const n = parseInt(m[1], 10);
+    if (!(n >= 1 && n <= 500)) return false;   // números grandes son parte del nombre
+    const rest = (s.slice(0, m.index) + s.slice(m.index + m[0].length)).trim();
+    if (!rest) return false;
+    qty = n;
+    s = rest;
+    return true;
+  };
+  tryMatch(/\s*\(\s*x?\s*(\d+)\s*(?:unidades|unid|un|u)?\.?\s*\)\s*$/i) ||
+  tryMatch(/(?:\s*[-–=:]\s*|\s+)x?\s*(\d+)\s*(?:unidades|unid|un|u)?\.?\s*$/i) ||
+  tryMatch(/^x?\s*(\d+)\s*x?\s+(?=\D)/i);
+  s = s.replace(/[\s\-–:=]+$/, '').trim();
+  if (!s) return null;
+  return { flavor: s, qty: qty == null ? defaultQty : qty };
+}
+
+function parseVariants(text, defaultQty) {
+  const out = [];
+  String(text).split(/[\n,;]+/).forEach((line) => {
+    if (/sabores\s+dispo/i.test(line)) return;
+    const v = parseFlavorLine(line, defaultQty);
+    if (!v) return;
+    const dup = out.find((o) => o.flavor.toLowerCase() === v.flavor.toLowerCase());
+    if (dup) dup.qty += v.qty; else out.push(v);
+  });
+  return out;
+}
+
+const lineUnits = (line) => line.variants.reduce((s, v) => s + v.qty, 0);
+const baseCostArs = (usd) => usd * (1 + (config.pasero || 0) / 100) * (config.usdt || 0);
+// El flete se reparte parejo entre todas las unidades compradas en USD
+function freightPerUnit(extraUnits) {
+  const units = draft.lines.reduce((s, l) => s + (l.usd > 0 ? lineUnits(l) : 0), 0) + (extraUnits || 0);
+  return units > 0 ? (draft.freight || 0) / units : 0;
+}
+const lineCostArs = (line, fpu) => (line.usd > 0 ? baseCostArs(line.usd) + fpu : modelCost(line.model));
+const linePrice = (line) => (line.price > 0 ? line.price : modelPrice(line.model));
+
+function formVariants() {
+  const defaultQty = Math.max(1, parseInt($('lot-qty').value, 10) || 1);
+  const text = $('lot-flavors').value.trim();
+  if (!text) return { variants: [{ flavor: 'Único', qty: defaultQty }], empty: true };
+  return { variants: parseVariants(text, defaultQty), empty: false };
+}
+
+function updateLotForm() {
+  const usd = num($('lot-usd').value);
+  const margin = num($('lot-margin').value);
+  const { variants, empty } = formVariants();
+  const units = variants.reduce((s, v) => s + v.qty, 0);
+
+  $('lot-preview').textContent = empty
+    ? `Sin lista de sabores se carga como “Único” × ${units}.`
+    : (variants.length
+      ? `${variants.length} sabor${variants.length === 1 ? '' : 'es'} · ${units} u. → ` + variants.map((v) => `${v.flavor} ×${v.qty}`).join(' · ')
+      : 'No pude leer ningún sabor.');
+
+  if (usd > 0) {
+    const cost = baseCostArs(usd) + freightPerUnit(units);
+    $('lot-live-cost').textContent = money(cost);
+    if (!lotPriceTouched) $('lot-price').value = Math.round(cost * (1 + margin / 100) / 100) * 100;
+  } else {
+    $('lot-live-cost').textContent = '$0';
+    if (!lotPriceTouched) $('lot-price').value = '';
+  }
+}
+
+function renderLot() {
+  const fpu = freightPerUnit(0);
+  let units = 0;
+  let invest = 0;
+  let revenue = 0;
+  let usdTotal = 0;
+
+  $('lot-lines').innerHTML = draft.lines.map((line) => {
+    const u = lineUnits(line);
+    const cost = lineCostArs(line, fpu);
+    const price = linePrice(line);
+    units += u;
+    invest += cost * u;
+    revenue += price * u;
+    usdTotal += (line.usd || 0) * u;
+    return `
+      <div class="planner-item">
+        <div class="pi-head">
+          <span class="pi-name">${esc(line.model)}<span class="pi-qty">${u} u.</span></span>
+          <span class="pi-actions">
+            <button class="icon-btn" data-action="lot-edit" data-id="${esc(line.id)}" aria-label="Editar">${iconEdit}</button>
+            <button class="icon-btn" data-action="lot-del" data-id="${esc(line.id)}" aria-label="Quitar">${iconTrash}</button>
+          </span>
+        </div>
+        <div class="pi-flavors">${line.variants.map((v) => `${esc(v.flavor)} ×${v.qty}`).join(' · ')}</div>
+        <div class="pi-row">
+          <span>Costo real <b>${money(cost)}</b></span>
+          <span>Venta <b>${money(price)}</b></span>
+          <span class="pi-profit">Limpio ${money(price - cost)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('lot-total-units').textContent = units;
+  $('lot-total-usd').textContent = 'US$ ' + usdTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  $('lot-total-invest').textContent = money(invest);
+  $('lot-total-profit').textContent = money(revenue - invest);
+  $('lot-commit-btn').textContent = units > 0 ? `✅ Ingresar ${units} u. al stock` : '✅ Ingresar al stock';
+  $('lot-models').innerHTML = [...new Set(stock.map((i) => i.model))].map((m) => `<option value="${esc(m)}"></option>`).join('');
+}
+
+function clearLotForm() {
+  ['lot-model', 'lot-usd', 'lot-flavors', 'lot-price'].forEach((id) => { $(id).value = ''; });
+  $('lot-qty').value = '1';
+  lotPriceTouched = false;
+  updateLotForm();
+}
+
+$('fab-btn').addEventListener('click', () => {
+  $('lot-usdt').value = config.usdt;
+  $('lot-pasero').value = config.pasero;
+  $('lot-freight').value = draft.freight || '';
+  if (!$('lot-margin').value) $('lot-margin').value = config.margin;
+  renderLot();
+  updateLotForm();
+  openModal('lot-modal');
+});
+
+['lot-usdt', 'lot-pasero', 'lot-freight'].forEach((id) => {
+  $(id).addEventListener('input', () => {
+    config.usdt = num($('lot-usdt').value);
+    config.pasero = num($('lot-pasero').value);
+    draft.freight = Math.max(0, num($('lot-freight').value));
+    saveConfig();
+    saveDraft();
+    renderLot();
+    updateLotForm();
+  });
+});
+['lot-usd', 'lot-margin', 'lot-qty', 'lot-flavors'].forEach((id) => {
+  $(id).addEventListener('input', updateLotForm);
+});
+$('lot-price').addEventListener('input', () => {
+  lotPriceTouched = $('lot-price').value.trim() !== '';
+  if (!lotPriceTouched) updateLotForm();
+});
+
+$('lot-add-btn').addEventListener('click', () => {
+  const model = $('lot-model').value.trim().toUpperCase();
+  const usd = num($('lot-usd').value);
+  const price = int($('lot-price').value);
+  const { variants } = formVariants();
+
+  if (!model) return showToast('Poné el nombre del modelo', 'warn');
+  if (variants.length === 0) return showToast('No pude leer los sabores', 'warn');
+  if (usd <= 0 && modelCost(model) <= 0) return showToast('Falta el costo en USD', 'warn');
+  if (price <= 0 && modelPrice(model) <= 0) return showToast('Falta el precio de venta', 'warn');
+
+  const same = draft.lines.find((l) => l.model === model && l.usd === usd);
+  if (same) {
+    variants.forEach((v) => {
+      const dup = same.variants.find((o) => o.flavor.toLowerCase() === v.flavor.toLowerCase());
+      if (dup) dup.qty += v.qty; else same.variants.push(v);
+    });
+    if (price > 0) same.price = price;
+  } else {
+    draft.lines.push({ id: uid(), model, usd, price, variants });
+  }
+  saveDraft();
+  clearLotForm();
+  renderLot();
+  showToast(`✅ ${model} agregado a la tanda`);
+});
+
+$('lot-lines').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const line = draft.lines.find((l) => l.id === el.dataset.id);
+  if (!line) return;
+  draft.lines = draft.lines.filter((l) => l.id !== line.id);
+  saveDraft();
+  if (el.dataset.action === 'lot-edit') {
+    $('lot-model').value = line.model;
+    $('lot-usd').value = line.usd || '';
+    $('lot-price').value = line.price || '';
+    $('lot-qty').value = '1';
+    $('lot-flavors').value = line.variants.map((v) => `${v.flavor} x${v.qty}`).join('\n');
+    lotPriceTouched = line.price > 0;
+    $('lot-model').scrollIntoView({ block: 'center' });
+  }
+  renderLot();
+  updateLotForm();
+});
+
+$('lot-commit-btn').addEventListener('click', () => {
+  if (draft.lines.length === 0) return showToast('Agregá al menos un modelo a la tanda', 'warn');
+  if ($('lot-model').value.trim() &&
+      !confirm('Hay un modelo escrito que todavía no agregaste a la tanda. ¿Ingresar igual sin ese modelo?')) return;
+
+  const totalUnits = draft.lines.reduce((s, l) => s + lineUnits(l), 0);
+  if (!confirm(`¿Ingresar ${totalUnits} unidades al stock?`)) return;
+
+  const fpu = freightPerUnit(0);
+  const record = {
+    id: uid(), timestamp: Date.now(), usdt: config.usdt, pasero: config.pasero,
+    freight: draft.freight || 0, units: 0, invest: 0, lines: []
+  };
+
+  draft.lines.forEach((line) => {
+    const units = lineUnits(line);
+    const exactCost = lineCostArs(line, fpu);
+    const newCost = Math.round(exactCost);
+    const price = linePrice(line);
+    const items = modelItems(line.model);
+    const oldUnits = items.reduce((s, i) => s + i.qty, 0);
+    const oldCost = modelCost(line.model);
+
+    // Si ya había unidades con otro costo, se promedia en vez de pisarlo
+    let cost = newCost;
+    if (oldUnits > 0 && oldCost > 0 && newCost > 0) {
+      cost = Math.round((oldUnits * oldCost + units * newCost) / (oldUnits + units));
+    } else if (newCost === 0) {
+      cost = oldCost;
+    }
+    items.forEach((i) => { i.cost = cost; if (price > 0) i.price = price; });
+
+    line.variants.forEach((v) => {
+      const existing = items.find((i) => i.flavor.toLowerCase() === v.flavor.toLowerCase());
+      if (existing) {
+        existing.qty += v.qty;
+      } else {
+        const item = { id: uid(), model: line.model, flavor: v.flavor, qty: v.qty, cost, price };
+        stock.push(item);
+        items.push(item);
+      }
+    });
+
+    record.units += units;
+    record.invest += exactCost * units;
+    record.lines.push({ model: line.model, usd: line.usd, qty: units, cost: newCost, price });
+    collapsed.delete(line.model);
+  });
+
+  record.invest = Math.round(record.invest);
+  lots.push(record);
+  draft = { freight: 0, lines: [] };
+  config.margin = num($('lot-margin').value) || config.margin;
+  saveStock();
+  saveLots();
+  saveDraft();
+  saveConfig();
+  store(K.collapsed, [...collapsed]);
+  clearLotForm();
+  closeModal('lot-modal');
+  render();
+  showToast(`📦 ${record.units} unidades ingresadas`);
+});
+
+/* ---------------- EDITAR MODELO ---------------- */
+function openEditModel(model) {
+  $('edit-old-name').value = model;
+  $('edit-model-name').value = model;
+  $('edit-model-cost').value = modelCost(model) || '';
+  $('edit-model-price').value = modelPrice(model) || '';
+  openModal('edit-modal');
+}
+
+$('save-edit-btn').addEventListener('click', () => {
+  const oldName = $('edit-old-name').value;
+  const newName = $('edit-model-name').value.trim().toUpperCase();
+  if (!newName) return showToast('El modelo necesita un nombre', 'warn');
+  const newCost = Math.max(0, int($('edit-model-cost').value));
+  const newPrice = Math.max(0, int($('edit-model-price').value));
+  stock.forEach((item) => {
+    if (item.model === oldName) {
+      item.model = newName;
+      item.cost = newCost;
+      item.price = newPrice;
+    }
+  });
+  if (collapsed.delete(oldName)) collapsed.add(newName);
+  store(K.collapsed, [...collapsed]);
+  saveStock();
+  closeModal('edit-modal');
+  render();
+  showToast('✅ Modelo actualizado');
+});
+
+function deleteModel(model) {
+  if (!confirm(`¿Seguro que querés eliminar el modelo "${model}" entero?`)) return;
+  stock = stock.filter((i) => i.model !== model);
+  saveStock();
+  sanitize();
+  render();
+  showToast('🗑️ Modelo eliminado');
+}
+
+/* ---------------- CORREGIR SABOR ---------------- */
+function openFlavor(id) {
+  const item = findItem(id);
+  if (!item) return;
+  const reserved = reservedQty(item.id);
+  $('flavor-id').value = String(item.id);
+  $('flavor-title').textContent = item.model;
+  $('flavor-name-input').value = item.flavor;
+  $('flavor-qty-input').value = item.qty;
+  $('flavor-note').textContent = 'Los cambios de acá no cuentan como venta.' +
+    (reserved > 0 ? ` Hay ${reserved} reservada${reserved === 1 ? '' : 's'}.` : '');
+  openModal('flavor-modal');
+}
+
+$('flavor-minus').addEventListener('click', () => {
+  $('flavor-qty-input').value = Math.max(0, int($('flavor-qty-input').value) - 1);
+});
+$('flavor-plus').addEventListener('click', () => {
+  $('flavor-qty-input').value = Math.max(0, int($('flavor-qty-input').value)) + 1;
+});
+
+$('flavor-save-btn').addEventListener('click', () => {
+  const item = findItem($('flavor-id').value);
+  if (!item) return closeModal('flavor-modal');
+  const name = $('flavor-name-input').value.trim();
+  if (!name) return showToast('El sabor necesita un nombre', 'warn');
+  const clash = stock.find((i) => i !== item && i.model === item.model && i.flavor.toLowerCase() === name.toLowerCase());
+  if (clash) return showToast('Ese sabor ya existe en el modelo', 'warn');
+  item.flavor = name;
+  item.qty = Math.max(0, int($('flavor-qty-input').value));
+  saveStock();
+  sanitize();
+  closeModal('flavor-modal');
+  render();
+  showToast('✅ Stock corregido');
+});
+
+$('flavor-delete-btn').addEventListener('click', () => {
+  const item = findItem($('flavor-id').value);
+  if (!item) return closeModal('flavor-modal');
+  const reserved = reservedQty(item.id);
+  const extra = reserved > 0 ? ` Tiene ${reserved} reservada${reserved === 1 ? '' : 's'}: se quitan de esas reservas.` : '';
+  if (!confirm(`¿Eliminar "${item.flavor}" de ${item.model}?${extra}`)) return;
+  stock = stock.filter((i) => i !== item);
+  saveStock();
+  sanitize();
+  closeModal('flavor-modal');
+  render();
+  showToast('🗑️ Sabor eliminado');
+});
+
+/* ---------------- VENTAS Y NÚMEROS ---------------- */
+function rangeStart(range) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (range === 'today') return d.getTime();
+  if (range === '7') return d.getTime() - 6 * DAY;
+  if (range === '30') return d.getTime() - 29 * DAY;
+  return 0;
+}
+const saleKey = (s) => (s.saleId ? String(s.saleId) : 'u' + s.id);
+const payLabel = (p) => (p === 'efectivo' ? 'Efectivo' : (p === 'transferencia' ? 'Transferencia' : ''));
+
+$('btn-history').addEventListener('click', () => {
+  renderHistory();
+  openModal('history-modal');
+});
+
+$('range-tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-range]');
+  if (!tab) return;
+  historyRange = tab.dataset.range;
+  renderHistory();
+});
+$('view-tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-view]');
+  if (!tab) return;
+  historyView = tab.dataset.view;
+  renderHistory();
+});
+
+$('btn-clear-history').addEventListener('click', () => {
+  if (sales.length === 0) return showToast('El historial ya está vacío');
+  if (!confirm('¿Seguro que querés borrar TODO el historial de ventas? (Tu stock actual queda intacto)')) return;
+  sales = [];
+  saveSales();
+  renderHistory();
+  showToast('🗑️ Historial borrado');
+});
+
+function renderHistory() {
+  const priv = (text) => (isEyeOpen ? text : '•••');
+  document.querySelectorAll('#range-tabs .history-tab').forEach((t) => t.classList.toggle('active', t.dataset.range === historyRange));
+  document.querySelectorAll('#view-tabs .history-tab').forEach((t) => t.classList.toggle('active', t.dataset.view === historyView));
+
+  const from = rangeStart(historyRange);
+  const shown = sales.filter((s) => (s.timestamp || 0) >= from);
+
+  let money$ = 0;
+  let cost$ = 0;
+  const byPay = { efectivo: 0, transferencia: 0, otro: 0 };
+  shown.forEach((s) => {
+    money$ += s.price || 0;
+    cost$ += s.cost || 0;
+    byPay[byPay[s.pay] == null ? 'otro' : s.pay] += s.price || 0;
+  });
+  $('history-qty').textContent = shown.length;
+  $('history-money').textContent = priv(money(money$));
+  $('history-profit').textContent = priv(money(money$ - cost$));
+
+  const payParts = [];
+  if (byPay.efectivo) payParts.push(`💵 Efectivo <b>${priv(money(byPay.efectivo))}</b>`);
+  if (byPay.transferencia) payParts.push(`🏦 Transferencia <b>${priv(money(byPay.transferencia))}</b>`);
+  if (byPay.otro) payParts.push(`Sin dato <b>${priv(money(byPay.otro))}</b>`);
+  $('history-pay').innerHTML = payParts.join(' &nbsp;·&nbsp; ');
+
+  renderLotProgress(priv);
+
+  const list = $('history-list');
+  if (shown.length === 0) {
+    list.innerHTML = '<div class="empty-history">No hay ventas en este período.</div>';
+    return;
+  }
+  list.innerHTML = historyView === 'rank' ? rankingHtml(shown) : salesHtml(shown, priv);
+}
+
+// Cuánto de la última tanda ya se recuperó con ventas
+function renderLotProgress(priv) {
+  const box = $('lot-progress');
+  const lot = lots[lots.length - 1];
+  if (!lot || !(lot.invest > 0)) { box.classList.add('hidden'); return; }
+  const recovered = sales.filter((s) => (s.timestamp || 0) >= lot.timestamp).reduce((sum, s) => sum + (s.price || 0), 0);
+  const pct = Math.min(100, Math.round(recovered / lot.invest * 100));
+  const diff = recovered - lot.invest;
+  const date = new Date(lot.timestamp).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="lot-progress-title"><span>Tanda del ${date} · ${lot.units} u.</span><span>${pct}%</span></div>
+    <div class="lot-bar ${diff >= 0 ? 'done' : ''}"><div style="width:${pct}%"></div></div>
+    Invertiste ${priv(money(lot.invest))} · vendiste ${priv(money(recovered))} desde que entró.
+    ${diff >= 0 ? `Ya recuperaste la inversión (+${priv(money(diff))}).` : `Te faltan ${priv(money(-diff))} para recuperarla.`}`;
+}
+
+function salesHtml(shown, priv) {
+  const groups = new Map();
+  shown.forEach((s) => {
+    const key = saleKey(s);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  const ordered = [...groups.entries()].sort((a, b) => (b[1][0].timestamp || 0) - (a[1][0].timestamp || 0));
+
+  return ordered.map(([key, records]) => {
+    const first = records[0];
+    const total = records.reduce((s, r) => s + (r.price || 0), 0);
+    const list = records.reduce((s, r) => s + (r.listPrice == null ? (r.price || 0) : r.listPrice), 0);
+    const lines = new Map();
+    records.forEach((r) => {
+      const k = `${r.model} · ${r.flavor}`;
+      lines.set(k, (lines.get(k) || 0) + 1);
+    });
+    const d = new Date(first.timestamp);
+    const time = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const when = historyRange === 'today' ? time : d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ' ' + time;
+    const meta = [when, payLabel(first.pay), first.customer, list > total ? `dto. ${money(list - total)}` : '']
+      .filter(Boolean).map(esc).join(' · ');
+    return `
+      <div class="history-item">
+        <div class="history-item-left">
+          ${[...lines.entries()].map(([name, n]) => `<span class="history-item-title">${esc(name)}${n > 1 ? ' ×' + n : ''}</span>`).join('')}
+          <span class="history-item-subtitle">${meta}</span>
+        </div>
+        <div class="history-item-right">
+          <span class="history-item-price">${priv(money(total))}</span>
+          <button class="btn-undo" data-action="undo" data-key="${esc(key)}">Deshacer</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function rankingHtml(shown) {
+  const byFlavor = new Map();
+  const byModel = new Map();
+  shown.forEach((s) => {
+    const k = s.model + '\u0001' + s.flavor;
+    byFlavor.set(k, (byFlavor.get(k) || 0) + 1);
+    byModel.set(s.model, (byModel.get(s.model) || 0) + 1);
+  });
+  const bar = (name, sub, count, max) => `
+    <div class="rank-item">
+      <div class="rank-fill" style="width:${Math.round(count / max * 100)}%"></div>
+      <div class="rank-content">
+        <div class="rank-name"><span>${esc(name)}</span><span>${esc(sub)}</span></div>
+        <span class="rank-count">${count}</span>
+      </div>
+    </div>`;
+
+  const models = [...byModel.entries()].sort((a, b) => b[1] - a[1]);
+  const flavors = [...byFlavor.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const maxModel = models[0][1];
+  const maxFlavor = flavors[0][1];
+
+  let html = '<div class="rank-section">Por modelo</div>';
+  html += models.map(([model, n]) => {
+    const left = modelItems(model).reduce((s, i) => s + i.qty, 0);
+    return bar(model, `Quedan ${left} u.`, n, maxModel);
+  }).join('');
+  html += '<div class="rank-section">Por sabor</div>';
+  html += flavors.map(([k, n]) => {
+    const [model, flavor] = k.split('\u0001');
+    const item = stock.find((i) => i.model === model && i.flavor === flavor);
+    return bar(flavor, `${model} · ${item ? 'quedan ' + item.qty : 'ya no está en stock'}`, n, maxFlavor);
+  }).join('');
+  return html;
+}
+
+$('history-list').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action="undo"]');
+  if (!el) return;
+  const records = sales.filter((s) => saleKey(s) === el.dataset.key);
+  if (records.length === 0) return;
+  if (records.length > 1 && !confirm(`¿Deshacer esta venta de ${records.length} unidades? Vuelven al stock.`)) return;
+
+  records.forEach((sale) => {
+    const item = stock.find((i) => i.model === sale.model && i.flavor === sale.flavor);
+    if (item) {
+      item.qty += 1;
+    } else {
+      stock.push({
+        id: uid(), model: sale.model, flavor: sale.flavor, qty: 1,
+        cost: sale.cost || 0, price: sale.listPrice == null ? (sale.price || 0) : sale.listPrice
+      });
+    }
+  });
+  sales = sales.filter((s) => saleKey(s) !== el.dataset.key);
+  saveStock();
+  saveSales();
+  render();
+  renderHistory();
+  showToast(`↩️ Venta deshecha (+${records.length} al stock)`);
+});
+
+/* ---------------- AJUSTES Y BACKUP ---------------- */
+const CFG_FIELDS = {
+  'cfg-promo': 'promoPair', 'cfg-margin': 'margin', 'cfg-usdt': 'usdt',
+  'cfg-pasero': 'pasero', 'cfg-low': 'lowStock', 'cfg-target': 'targetStock'
+};
+
+$('btn-settings').addEventListener('click', () => {
+  Object.keys(CFG_FIELDS).forEach((id) => { $(id).value = config[CFG_FIELDS[id]] || (id === 'cfg-low' ? 0 : ''); });
+  renderBackupInfo();
+  openModal('settings-modal');
+});
+
+Object.keys(CFG_FIELDS).forEach((id) => {
+  $(id).addEventListener('input', () => {
+    const value = Math.max(0, num($(id).value));
+    config[CFG_FIELDS[id]] = (id === 'cfg-target') ? Math.max(1, Math.round(value)) : value;
+    if (id === 'cfg-margin') $('lot-margin').value = config.margin;
+    saveConfig();
     render();
   });
 });
 
-document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
-document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
+function renderBackupInfo() {
+  const info = $('backup-info');
+  if (!config.lastBackup) {
+    info.textContent = 'Los datos viven solo en este celular. Todavía no descargaste ningún backup.';
+  } else {
+    const days = Math.floor((Date.now() - config.lastBackup) / DAY);
+    info.textContent = 'Los datos viven solo en este celular. Último backup: ' +
+      (days <= 0 ? 'hoy.' : (days === 1 ? 'ayer.' : `hace ${days} días.`));
+  }
+}
 
-document.getElementById('export-btn').addEventListener('click', () => {
-  const backupData = { stock: stock, history: salesHistory, planner: plannedPurchases };
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
-  const downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", "StockVape_Backup_Total.json");
-  document.body.appendChild(downloadAnchorNode);
-  downloadAnchorNode.click();
-  downloadAnchorNode.remove();
-  showToast('💾 Backup completo descargado');
-  settingsModal.classList.add('hidden');
+$('export-btn').addEventListener('click', () => {
+  config.lastBackup = Date.now();
+  saveConfig();
+  const data = {
+    version: 2, exportedAt: new Date().toISOString(),
+    stock, history: sales, reservations, lots, lotDraft: draft, config
+  };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = url;
+  a.download = `StockVape_Backup_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  closeModal('settings-modal');
+  render();
+  showToast('💾 Backup descargado');
 });
 
-document.getElementById('import-file').addEventListener('change', (event) => {
+$('import-file').addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (Array.isArray(data)) {
-        stock = data;
-      } else if (data.stock) {
-        stock = data.stock;
-        salesHistory = data.history || [];
-        plannedPurchases = data.planner || [];
+      const newStock = Array.isArray(data) ? data : data.stock;
+      if (!Array.isArray(newStock)) throw new Error('formato');
+      if (!confirm('Esto reemplaza todo lo que hay cargado ahora por el contenido del backup. ¿Seguir?')) return;
+
+      store(K.stock, newStock);
+      store(K.sales, Array.isArray(data.history) ? data.history : []);
+      store(K.res, Array.isArray(data.reservations) ? data.reservations : []);
+      store(K.lots, Array.isArray(data.lots) ? data.lots : []);
+      if (data.config) store(K.config, Object.assign({}, DEFAULT_CONFIG, data.config));
+      if (data.lotDraft && Array.isArray(data.lotDraft.lines)) {
+        store(K.draft, data.lotDraft);
+      } else {
+        localStorage.removeItem(K.draft);
+        if (Array.isArray(data.planner)) store('vapePlanner', data.planner);
       }
-      saveStock();
-      saveHistory();
-      savePlanner();
-      showToast('📂 Backup restaurado');
-      settingsModal.classList.add('hidden');
+      localStorage.removeItem(K.cart);
+      location.reload();
     } catch (error) {
-      alert("Error al leer el archivo.");
+      alert('No pude leer ese archivo. ¿Es un backup de StockVape?');
+    } finally {
+      event.target.value = '';
     }
   };
   reader.readAsText(file);
 });
 
-// HISTORIAL DE VENTAS
-let historyView = 'today';
-
-document.getElementById('btn-history').addEventListener('click', () => {
-  renderHistory();
-  historyModal.classList.remove('hidden');
-});
-document.getElementById('close-history-btn').addEventListener('click', () => historyModal.classList.add('hidden'));
-
-document.getElementById('btn-clear-history').addEventListener('click', () => {
-  if (salesHistory.length === 0) return showToast('El historial ya está vacío');
-  if (confirm('¿Seguro que querés borrar TODO el historial de ventas? (Tu stock actual quedará intacto)')) {
-    salesHistory = [];
-    saveHistory();
-    renderHistory();
-    showToast('🗑️ Historial borrado');
-  }
-});
-
-document.getElementById('tab-today').addEventListener('click', () => {
-  historyView = 'today';
-  document.getElementById('tab-today').classList.add('active');
-  document.getElementById('tab-all').classList.remove('active');
-  renderHistory();
-});
-document.getElementById('tab-all').addEventListener('click', () => {
-  historyView = 'all';
-  document.getElementById('tab-all').classList.add('active');
-  document.getElementById('tab-today').classList.remove('active');
-  renderHistory();
-});
-
-function getTodayString() {
-  const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-}
-
-function renderHistory() {
-  const historyListContainer = document.getElementById('history-list');
-  const todayStr = getTodayString();
-  
-  let displaySales = historyView === 'today' 
-    ? salesHistory.filter(s => s.dateStr === todayStr) 
-    : salesHistory;
-    
-  displaySales = displaySales.sort((a, b) => b.timestamp - a.timestamp);
-
-  let totalQty = 0;
-  let totalMoney = 0;
-  let totalCost = 0;
-
-  historyListContainer.innerHTML = '';
-
-  if (displaySales.length === 0) {
-    historyListContainer.innerHTML = '<div class="empty-history">No hay ventas registradas.</div>';
-  } else {
-    displaySales.forEach(sale => {
-      totalQty += 1;
-      totalMoney += (sale.price || 0);
-      totalCost += (sale.cost || 0);
-
-      const dateObj = new Date(sale.timestamp);
-      const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      const dateDisplay = historyView === 'all' ? dateObj.toLocaleDateString() + ' ' + timeStr : timeStr;
-      
-      const priceText = isEyeOpen ? `$${(sale.price || 0).toLocaleString('es-AR')}` : '***';
-
-      const item = document.createElement('div');
-      item.className = 'history-item';
-      item.innerHTML = `
-        <div class="history-item-left">
-          <span class="history-item-title">${sale.model}</span>
-          <span class="history-item-subtitle">${sale.flavor} • ${dateDisplay}</span>
-        </div>
-        <div class="history-item-right">
-          <span class="history-item-price private-text">${priceText}</span>
-          <button class="btn-undo" onclick="undoSale(${sale.id})">Deshacer</button>
-        </div>
-      `;
-      historyListContainer.appendChild(item);
-    });
-  }
-
-  const profit = totalMoney - totalCost;
-
-  document.getElementById('history-qty').textContent = totalQty;
-  document.getElementById('history-money').textContent = isEyeOpen ? '$' + totalMoney.toLocaleString('es-AR') : '***';
-  document.getElementById('history-profit').textContent = isEyeOpen ? '$' + profit.toLocaleString('es-AR') : '***';
-}
-
-window.undoSale = function(saleId) {
-  const saleIndex = salesHistory.findIndex(s => s.id === saleId);
-  if (saleIndex > -1) {
-    const sale = salesHistory[saleIndex];
-    const stockItem = stock.find(i => i.model === sale.model && i.flavor === sale.flavor);
-    if (stockItem) {
-      stockItem.qty += 1;
-    } else {
-      stock.push({ id: Date.now(), model: sale.model, flavor: sale.flavor, price: sale.price, cost: sale.cost, qty: 1 });
-    }
-    
-    salesHistory.splice(saleIndex, 1);
-    saveStock();
-    saveHistory();
-    renderHistory();
-    showToast('↩️ Venta deshecha (+1 al stock)');
-  }
-};
-
-document.getElementById('fab-btn').addEventListener('click', () => addModal.classList.remove('hidden'));
-document.getElementById('close-modal-btn').addEventListener('click', () => addModal.classList.add('hidden'));
-
-document.getElementById('btn-open-copy').addEventListener('click', () => {
-  if (stock.filter(i => i.qty > 0).length === 0) return showToast('❌ No hay stock');
-  copyModal.classList.remove('hidden');
-});
-document.getElementById('close-copy-btn').addEventListener('click', () => copyModal.classList.add('hidden'));
-document.getElementById('close-edit-btn').addEventListener('click', () => editModal.classList.add('hidden'));
-
-document.getElementById('save-btn').addEventListener('click', () => {
-  const model = modelInput.value.trim().toUpperCase();
-  let cost = parseInt(costInput.value) || 0;
-  let price = parseInt(priceInput.value) || 0;
-  const flavorsRaw = flavorInput.value.trim();
-  const baseQty = parseInt(qtyInput.value) || 1;
-
-  if (!model || !flavorsRaw) return alert('Completá modelo y sabores');
-
-  const existingModelItems = stock.filter(i => i.model === model);
-  if (existingModelItems.length > 0) {
-    if (cost === 0) cost = existingModelItems[0].cost || 0;
-    if (price === 0) price = existingModelItems[0].price || 0;
-  }
-
-  const flavors = flavorsRaw.split(/[\n,]+/).map(f => f.trim()).filter(f => f.length > 0 && !f.toLowerCase().includes('sabores dispo'));
-  let addedCount = 0;
-
-  flavors.forEach(flavorStr => {
-    let parsedQty = baseQty;
-    let cleanFlavor = flavorStr;
-
-    const qtyMatch = flavorStr.match(/(?:[-=:]|\s)\s*(\d+)\s*[uU]?\.?\s*$/);
-    if (qtyMatch) {
-       parsedQty = parseInt(qtyMatch[1]);
-       cleanFlavor = flavorStr.replace(qtyMatch[0], '').trim();
-    }
-    cleanFlavor = cleanFlavor.replace(/^[-•*]\s*/, '').trim();
-
-    if (cleanFlavor) {
-      const existing = stock.find(i => i.model === model && i.flavor.toLowerCase() === cleanFlavor.toLowerCase());
-      if (existing) {
-        existing.qty += parsedQty;
-        if(price > 0) existing.price = price;
-        if(cost > 0) existing.cost = cost;
-      } else {
-        stock.push({ id: Date.now() + Math.random(), model, cost, price, flavor: cleanFlavor, qty: parsedQty });
-      }
-      addedCount++;
-    }
-  });
-
-  saveStock();
-  showToast(`✅ ${addedCount} guardados`);
-  flavorInput.value = ''; 
-  qtyInput.value = '1';
-  flavorInput.focus();
-});
-
-window.openEditModal = function(event, oldName) {
-  event.stopPropagation();
-  const currentItems = stock.filter(i => i.model === oldName);
-  const currentCost = currentItems.length > 0 ? (currentItems[0].cost || 0) : 0;
-  const currentPrice = currentItems.length > 0 ? (currentItems[0].price || 0) : 0;
-  
-  document.getElementById('edit-old-name').value = oldName;
-  document.getElementById('edit-model-name').value = oldName;
-  document.getElementById('edit-model-cost').value = currentCost || '';
-  document.getElementById('edit-model-price').value = currentPrice || '';
-  editModal.classList.remove('hidden');
-};
-
-document.getElementById('save-edit-btn').addEventListener('click', () => {
-  const oldName = document.getElementById('edit-old-name').value;
-  const newName = document.getElementById('edit-model-name').value.trim().toUpperCase();
-  const newCost = parseInt(document.getElementById('edit-model-cost').value) || 0;
-  const newPrice = parseInt(document.getElementById('edit-model-price').value) || 0;
-
-  if(newName) {
-    stock.forEach(item => {
-      if (item.model === oldName) {
-        item.model = newName;
-        item.cost = newCost;
-        item.price = newPrice;
-      }
-    });
-    saveStock();
-    showToast('✅ Modelo actualizado');
-    editModal.classList.add('hidden');
-  }
-});
-
-window.updateQty = function(id, change) {
-  const item = stock.find(i => i.id === id);
-  if (item) {
-    if (item.qty === 0 && change < 0) return; 
-    
-    if (change === -1) {
-      const now = new Date();
-      salesHistory.push({
-        id: Date.now(),
-        timestamp: now.getTime(),
-        dateStr: getTodayString(),
-        model: item.model,
-        flavor: item.flavor,
-        cost: item.cost || 0,
-        price: item.price || 0
-      });
-      saveHistory();
-    }
-
-    item.qty += change;
-    saveStock(); 
-  }
-};
-
-window.deleteFlavor = function(id) {
-  if (confirm('¿Seguro que querés eliminar este sabor?')) {
-    stock = stock.filter(i => i.id !== id);
-    saveStock();
-    showToast('🗑️ Sabor eliminado');
-  }
-};
-
-window.deleteModel = function(event, modelName) {
-  event.stopPropagation(); 
-  if (confirm(`¿Seguro que querés eliminar el modelo "${modelName}" entero?`)) {
-    stock = stock.filter(i => i.model !== modelName);
-    saveStock();
-    showToast('🗑️ Modelo eliminado');
-  }
-};
-
-window.toggleModel = function(element) {
-  const flavorsContainer = element.nextElementSibling;
-  const arrow = element.querySelector('.arrow');
-  flavorsContainer.classList.toggle('hidden');
-  arrow.classList.toggle('collapsed');
-};
-
-function executeCopy(withPrice) {
-  const available = stock.filter(i => i.qty > 0);
-  let text = "🔥 *STOCK DISPONIBLE* 🔥\n\n";
+/* ---------------- COPIAR ---------------- */
+function groupByModel(items) {
   const grouped = {};
-
-  available.forEach(i => {
+  items.forEach((i) => {
     if (!grouped[i.model]) grouped[i.model] = [];
     grouped[i.model].push(i);
   });
-
-  for (const model in grouped) {
-    const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
-    const priceStr = (withPrice && modelPrice > 0) ? ` ($${modelPrice.toLocaleString('es-AR')})` : '';
-    
-    text += `📌 *${model}*${priceStr}\n`;
-    grouped[model].forEach(f => text += `  • ${f.flavor}: ${f.qty} u.\n`);
-    text += "\n";
-  }
-
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('✅ Copiado al portapapeles');
-    copyModal.classList.add('hidden');
-  }).catch(() => alert("Error al copiar"));
+  return grouped;
 }
 
-document.getElementById('copy-simple-btn').addEventListener('click', () => executeCopy(false));
-document.getElementById('copy-price-btn').addEventListener('click', () => executeCopy(true));
+$('btn-open-copy').addEventListener('click', () => {
+  if (stock.length === 0) return showToast('❌ No hay stock cargado', 'warn');
+  openModal('copy-modal');
+});
 
-document.getElementById('copy-order-btn').addEventListener('click', () => {
-  const targetStock = 10; 
-  const lowStockItems = stock.filter(i => i.qty <= 2);
-  
-  if (lowStockItems.length === 0) {
-    showToast('✅ ¡Tenés buen stock de todo!');
-    copyModal.classList.add('hidden');
-    return;
-  }
-
-  let text = "📦 *PEDIDO DE REPOSICIÓN* 📦\n\nHola, necesito reponer lo siguiente:\n\n";
-  const grouped = {};
-
-  lowStockItems.forEach(i => {
-    if (!grouped[i.model]) grouped[i.model] = [];
-    grouped[i.model].push(i);
+function copyStock(withPrice) {
+  const available = stock.filter((i) => freeQty(i) > 0);
+  if (available.length === 0) return showToast('❌ No hay stock libre', 'warn');
+  const grouped = groupByModel(available);
+  let text = '🔥 *STOCK DISPONIBLE* 🔥\n\n';
+  Object.keys(grouped).forEach((model) => {
+    const price = modelPrice(model);
+    text += `📌 *${model}*${withPrice && price > 0 ? ` (${money(price)})` : ''}\n`;
+    grouped[model].forEach((f) => { text += `  • ${f.flavor}: ${freeQty(f)} u.\n`; });
+    text += '\n';
   });
+  if (withPrice && config.promoPair > 0) text += `🎁 Llevando 2 tenés ${money(config.promoPair)} de descuento (podés mezclar modelos).\n`;
+  closeModal('copy-modal');
+  copyText(text, '✅ Copiado al portapapeles');
+}
+$('copy-simple-btn').addEventListener('click', () => copyStock(false));
+$('copy-price-btn').addEventListener('click', () => copyStock(true));
 
-  for (const model in grouped) {
+$('copy-order-btn').addEventListener('click', () => {
+  const low = stock.filter((i) => freeQty(i) <= config.lowStock && config.targetStock - freeQty(i) > 0);
+  closeModal('copy-modal');
+  if (low.length === 0) return showToast('✅ ¡Tenés buen stock de todo!');
+  const grouped = groupByModel(low);
+  let text = '📦 *PEDIDO DE REPOSICIÓN* 📦\n\nHola, necesito reponer lo siguiente:\n\n';
+  Object.keys(grouped).forEach((model) => {
     text += `📌 *${model}*\n`;
-    grouped[model].forEach(f => {
-      const toOrder = targetStock - f.qty; 
-      text += `  • ${f.flavor} (x${toOrder} u.)\n`;
-    });
-    text += "\n";
-  }
-
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('✅ Pedido copiado (¡Pegalo en WhatsApp!)');
-    copyModal.classList.add('hidden');
-  }).catch(() => alert("Error al copiar el pedido"));
+    grouped[model].forEach((f) => { text += `  • ${f.flavor} (x${config.targetStock - freeQty(f)} u.)\n`; });
+    text += '\n';
+  });
+  copyText(text, '✅ Pedido copiado (¡pegalo en WhatsApp!)');
 });
 
-// ---------------- RENDER PRINCIPAL ----------------
+/* ---------------- PANTALLA PRINCIPAL ---------------- */
+$('btn-toggle-eye').addEventListener('click', () => {
+  isEyeOpen = !isEyeOpen;
+  localStorage.setItem(K.eye, isEyeOpen);
+  render();
+});
+
+document.querySelectorAll('.filter-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach((c) => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.filter;
+    render();
+  });
+});
+searchInput.addEventListener('input', render);
+
+stockContainer.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const { action, id, model } = el.dataset;
+  if (action === 'cart-add') changeCart(id, 1);
+  else if (action === 'cart-sub') changeCart(id, -1);
+  else if (action === 'flavor-open') openFlavor(id);
+  else if (action === 'edit-model') openEditModel(model);
+  else if (action === 'delete-model') deleteModel(model);
+  else if (action === 'toggle-model') {
+    if (collapsed.has(model)) collapsed.delete(model); else collapsed.add(model);
+    store(K.collapsed, [...collapsed]);
+    render();
+  }
+});
+
 function render() {
-  document.getElementById('btn-toggle-eye').innerHTML = isEyeOpen ? iconEyeOpen : iconEyeClosed;
+  const priv = (text) => (isEyeOpen ? text : '•••');
+  $('btn-toggle-eye').innerHTML = isEyeOpen ? iconEyeOpen : iconEyeClosed;
+  $('chip-low').textContent = `⚠️ Poco stock (≤ ${config.lowStock})`;
 
-  const query = searchInput.value.toLowerCase();
-  const isSearchingOrFiltering = query.length > 0 || currentFilter !== 'all';
-
+  // Resumen
   let totalQty = 0;
   let totalMoney = 0;
   let totalCost = 0;
-  
-  stock.forEach(i => {
-    if (i.qty > 0) {
-      totalQty += i.qty;
-      totalMoney += (i.qty * (i.price || 0));
-      totalCost += (i.qty * (i.cost || 0));
-    }
+  stock.forEach((i) => {
+    totalQty += i.qty;
+    totalMoney += i.qty * (i.price || 0);
+    totalCost += i.qty * (i.cost || 0);
   });
-  
-  const totalProfit = totalMoney - totalCost;
+  const totalReserved = reservations.reduce((s, r) => s + r.items.reduce((a, it) => a + it.qty, 0), 0);
+  $('total-qty').textContent = totalQty + ' u.';
+  $('total-reserved').textContent = totalReserved > 0 ? `${totalReserved} reservada${totalReserved === 1 ? '' : 's'}` : '';
+  $('total-money').textContent = priv(money(totalMoney));
+  $('total-profit').textContent = priv(money(totalMoney - totalCost));
 
-  document.getElementById('total-qty').textContent = totalQty + ' u.';
-  document.getElementById('total-money').textContent = isEyeOpen ? '$' + totalMoney.toLocaleString('es-AR') : '***';
-  document.getElementById('total-profit').textContent = isEyeOpen ? '$' + totalProfit.toLocaleString('es-AR') : '***';
+  const resCount = $('reservas-count');
+  resCount.textContent = reservations.length;
+  resCount.classList.toggle('hidden', reservations.length === 0);
+  $('backup-dot').classList.toggle('hidden', !(stock.length > 0 && Date.now() - (config.lastBackup || 0) > 7 * DAY));
 
-  const openModels = new Set();
-  document.querySelectorAll('.model-card').forEach(card => {
-    const titleSpan = card.querySelector('.model-title-text');
-    if (titleSpan) {
-        const title = titleSpan.textContent;
-        const flavors = card.querySelector('.model-flavors');
-        if (!flavors.classList.contains('hidden')) openModels.add(title);
-    }
-  });
-
-  stockContainer.innerHTML = '';
-
-  const filtered = stock.filter(i => {
-    const matchesSearch = i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query);
-    let matchesChip = true;
-    
-    if (currentFilter === 'low') {
-      matchesChip = i.qty > 0 && i.qty <= 2;
-    } else if (currentFilter === 'out') {
-      matchesChip = i.qty === 0;
-    }
-
-    return matchesSearch && matchesChip;
+  // Lista
+  const query = searchInput.value.trim().toLowerCase();
+  const forcedOpen = query.length > 0 || currentFilter !== 'all';
+  const filtered = stock.filter((i) => {
+    if (query && !(i.model.toLowerCase().includes(query) || i.flavor.toLowerCase().includes(query))) return false;
+    const free = freeQty(i);
+    if (currentFilter === 'low') return free > 0 && free <= config.lowStock;
+    if (currentFilter === 'out') return free === 0;
+    return true;
   });
 
-  const grouped = {};
-  filtered.forEach(item => {
-    if (!grouped[item.model]) grouped[item.model] = [];
-    grouped[item.model].push(item);
-  });
+  if (filtered.length === 0) {
+    stockContainer.innerHTML = `<div class="empty-state">${stock.length === 0
+      ? 'Todavía no hay stock cargado.<br>Tocá <b>Ingresar tanda</b> para cargarlo.'
+      : 'No hay nada que coincida con la búsqueda o el filtro.'}</div>`;
+  } else {
+    const grouped = groupByModel(filtered);
+    stockContainer.innerHTML = Object.keys(grouped).map((model) => {
+      const isCollapsed = !forcedOpen && collapsed.has(model);
+      const price = modelPrice(model);
+      const cost = modelCost(model);
+      const units = modelItems(model).reduce((s, i) => s + i.qty, 0);
 
-  for (const model in grouped) {
-    const card = document.createElement('div');
-    card.className = 'model-card';
-
-    const shouldBeOpen = isSearchingOrFiltering || openModels.has(model);
-    const collapsedClass = shouldBeOpen ? '' : 'hidden';
-    const arrowClass = shouldBeOpen ? '' : 'collapsed';
-    const safeModelName = model.replace(/'/g, "\\'"); 
-    
-    const modelPrice = Math.max(...grouped[model].map(i => i.price || 0));
-    const modelCost = Math.max(...grouped[model].map(i => i.cost || 0));
-    const modelProfit = modelPrice - modelCost;
-
-    let badgesHtml = '';
-    if (isEyeOpen && modelPrice > 0) {
-      badgesHtml += `<div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">`;
-      badgesHtml += `<span class="model-price-badge">Venta $${modelPrice.toLocaleString('es-AR')}</span>`;
-      if (modelCost > 0 && modelProfit > 0) {
-        badgesHtml += `<span class="model-profit-badge">Limpio $${modelProfit.toLocaleString('es-AR')}</span>`;
+      let badges = `<span class="model-badge units">${units} u.</span>`;
+      if (isEyeOpen && price > 0) {
+        badges += `<span class="model-badge price">Venta ${money(price)}</span>`;
+        if (cost > 0 && price - cost > 0) badges += `<span class="model-badge profit">Limpio ${money(price - cost)}</span>`;
       }
-      badgesHtml += `</div>`;
-    }
 
-    card.innerHTML = `
-      <div class="model-title" onclick="toggleModel(this)">
-        <div class="model-title-left">
-          <span class="model-title-text">${model}</span>
-          ${badgesHtml}
-        </div>
-        <div class="model-title-right">
-          <button class="icon-btn" onclick="openEditModal(event, '${safeModelName}')">${iconEdit}</button>
-          <button class="icon-btn danger" onclick="deleteModel(event, '${safeModelName}')">${iconTrash}</button>
-          ${iconChevron}
-        </div>
-      </div>
-      <div class="model-flavors ${collapsedClass}"></div>
-    `;
+      const rows = grouped[model].map((item) => {
+        const reserved = reservedQty(item.id);
+        const free = Math.max(0, item.qty - reserved);
+        const inCart = cartQty(item.id);
 
-    const flavorsContainer = card.querySelector('.model-flavors');
+        let badge = '';
+        if (item.qty === 0) badge = '<span class="badge badge-danger">Agotado</span>';
+        else if (free === 0) badge = '<span class="badge badge-reserve">Todo reservado</span>';
+        else if (reserved > 0) badge = `<span class="badge badge-reserve">${reserved} reservada${reserved === 1 ? '' : 's'} · ${free} libre${free === 1 ? '' : 's'}</span>`;
+        else if (free === 1) badge = '<span class="badge badge-warning">Última</span>';
+        const isLow = free > 0 && free <= config.lowStock;
 
-    grouped[model].forEach(item => {
-      const row = document.createElement('div');
-      row.className = `flavor-row ${item.qty === 0 ? 'out-of-stock' : ''}`;
-      
-      let badgeHtml = '';
-      if (item.qty === 0) badgeHtml = '<span class="badge badge-danger">Agotado</span>';
-      else if (item.qty <= 2) badgeHtml = '<span class="badge badge-warning">Quedan ' + item.qty + '</span>';
+        const control = inCart > 0
+          ? `<div class="controls in-cart">
+               <button class="btn-qty" data-action="cart-sub" data-id="${esc(item.id)}" aria-label="Quitar de la venta">−</button>
+               <span class="qty-number">${inCart}</span>
+               <button class="btn-qty" data-action="cart-add" data-id="${esc(item.id)}" aria-label="Sumar a la venta">+</button>
+             </div>`
+          : `<button class="btn-add" data-action="cart-add" data-id="${esc(item.id)}" aria-label="Sumar a la venta" ${maxForCart(item) === 0 ? 'disabled' : ''}>+</button>`;
 
-      row.innerHTML = `
-        <div class="flavor-header">
-          <button class="icon-btn-small" onclick="deleteFlavor(${item.id})">${iconDeleteFlavor}</button>
-          <div class="flavor-info">
-            <span class="flavor-name">${item.flavor}</span>
-            ${badgeHtml}
+        return `
+          <div class="flavor-row ${free === 0 ? 'out-of-stock' : ''}">
+            <button class="flavor-main" data-action="flavor-open" data-id="${esc(item.id)}">
+              <span class="flavor-name">${esc(item.flavor)}</span>
+              <span class="flavor-meta"><span class="stock-pill ${isLow ? 'low' : ''}">${item.qty} u.</span>${badge}</span>
+            </button>
+            ${control}
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="model-card">
+          <div class="model-title" data-action="toggle-model" data-model="${esc(model)}">
+            <div class="model-title-left">
+              <span class="model-title-text">${esc(model)}</span>
+              <div class="model-badges">${badges}</div>
+            </div>
+            <div class="model-title-right">
+              <button class="icon-btn" data-action="edit-model" data-model="${esc(model)}" aria-label="Editar modelo">${iconEdit}</button>
+              <button class="icon-btn" data-action="delete-model" data-model="${esc(model)}" aria-label="Eliminar modelo">${iconTrash}</button>
+              ${iconChevron(isCollapsed)}
+            </div>
           </div>
-        </div>
-        <div class="controls">
-          <button class="btn-qty" onclick="updateQty(${item.id}, -1)">-</button>
-          <span class="qty-number">${item.qty}</span>
-          <button class="btn-qty" onclick="updateQty(${item.id}, 1)">+</button>
-        </div>
-      `;
-      flavorsContainer.appendChild(row);
-    });
-
-    stockContainer.appendChild(card);
+          <div class="model-flavors ${isCollapsed ? 'hidden' : ''}">${rows}</div>
+        </div>`;
+    }).join('');
   }
+
+  renderCartBar();
 }
 
-searchInput.addEventListener('input', render);
+function syncHeaderHeight() {
+  const header = document.querySelector('.app-header');
+  if (header && header.offsetHeight) {
+    document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+  }
+}
+window.addEventListener('resize', syncHeaderHeight);
+
+/* ---------------- ARRANQUE ---------------- */
+saveStock();
+saveConfig();
+saveDraft();
+sanitize();
+syncHeaderHeight();
 render();
